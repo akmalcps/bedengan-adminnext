@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import LoginForm from './components/loginform';
-import '@/src/legacy-pages/auth/Login.css';
+import './Login.css';
 
 export const metadata: Metadata = {
   title: 'Login - Bedengan Xplore Admin',
