@@ -5,17 +5,17 @@ import { useRouter } from 'next/navigation';
 import Sidebar from '@/src/components/layout/Sidebar';
 import Topbar from '@/src/components/layout/Topbar';
 import { isAuthenticated } from '@/src/utils/auth';
-import { getApplications } from '@/src/services/mock/applicationService';
-import '@/src/components/layout/AdminLayout.css';
+import { getApplications } from '@/src/services/applicationService';
+import { Application } from '@/src/types/application';
+import { Loader2 } from 'lucide-react';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [pendingApplications, setPendingApplications] = useState<any[]>([]);
+  const [pendingApplications, setPendingApplications] = useState<Application[]>([]);
   const [checkedAuth, setCheckedAuth] = useState(false);
 
   useEffect(() => {
-    // If user is not authenticated, set default demo auth if none, or redirect to login
     if (!isAuthenticated()) {
       router.replace('/login');
       return;
@@ -25,7 +25,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const fetchPendingCount = async () => {
       try {
         const data = await getApplications();
-        const pending = data.filter((item: any) => item.status === 'Pending');
+        const pending = data.filter((item: Application) => item.status === 'Pending');
         setPendingApplications(pending);
       } catch (error) {
         console.error('Error fetching pending count:', error);
@@ -40,8 +40,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (!checkedAuth) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--color-background)' }}>
-        <p style={{ color: 'var(--color-forest)', fontWeight: 500 }}>Memuat Panel Admin...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#EEF5EA] gap-3">
+        <Loader2 className="animate-spin text-[#85BB45]" size={36} />
+        <p className="text-[#1C2B20] font-medium text-sm">Memuat Panel Admin...</p>
       </div>
     );
   }
@@ -51,17 +52,29 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   };
 
   return (
-    <div className="admin-layout">
-      <div className={`sidebar-overlay ${sidebarOpen ? 'active' : ''}`} onClick={() => setSidebarOpen(false)}></div>
-      
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} pendingCount={pendingApplications.length} />
-      
-      <div className="admin-main">
+    <div className="min-h-screen flex bg-[#EEF5EA]">
+      {/* Mobile Backdrop Overlay */}
+      <div
+        className={`fixed inset-0 bg-black/40 backdrop-blur-xs z-40 lg:hidden transition-opacity duration-300 ${
+          sidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+        onClick={() => setSidebarOpen(false)}
+      />
+
+      {/* Sidebar Component */}
+      <Sidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        pendingCount={pendingApplications.length}
+      />
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen overflow-x-hidden">
         <Topbar onMenuClick={toggleSidebar} pendingApplications={pendingApplications} />
-        
-        <div className="admin-content">
+
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
           {children}
-        </div>
+        </main>
       </div>
     </div>
   );
