@@ -18,8 +18,10 @@ export async function apiClient<T = any>(
 ): Promise<T> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('bedengan_admin_token') : null;
 
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...((options.headers as Record<string, string>) || {}),
   };

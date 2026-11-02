@@ -126,14 +126,15 @@ export default function KawasanDetail() {
           <div className="space-y-2 pt-2">
             <h4 className="text-sm font-bold text-[#1C2B20]">Fasilitas Terdekat</h4>
             <div className="flex flex-wrap gap-2">
-              {kawasan.facilities?.map((f) => (
-                <span
-                  key={f}
-                  className="px-3.5 py-1.5 rounded-full bg-[#85BB45]/15 text-[#3F6900] text-xs font-semibold"
-                >
-                  {f}
-                </span>
-              ))}
+              {Array.isArray(kawasan.facilities) &&
+                kawasan.facilities.map((f) => (
+                  <span
+                    key={f}
+                    className="px-3.5 py-1.5 rounded-full bg-[#85BB45]/15 text-[#3F6900] text-xs font-semibold"
+                  >
+                    {f}
+                  </span>
+                ))}
             </div>
           </div>
         </div>

@@ -119,7 +119,7 @@ export default function WarungDetail() {
               <div>
                 <p className="text-[11px] font-semibold text-[#8b9d91]">Jam Buka</p>
                 <p className="text-xs font-bold text-[#1C2B20]">
-                  {warung.openingTime} - {warung.closingTime}
+                  {warung.openingTime} - {warung.closingTime} WIB
                 </p>
               </div>
             </div>
@@ -144,14 +144,18 @@ export default function WarungDetail() {
           <div className="space-y-2 pt-2">
             <h4 className="text-sm font-bold text-[#1C2B20]">Menu Andalan & Rekomendasi</h4>
             <div className="flex flex-wrap gap-2">
-              {warung.tags?.map((tag) => (
-                <span
-                  key={tag}
-                  className="px-3.5 py-1.5 rounded-full bg-[#85BB45]/15 text-[#3F6900] text-xs font-semibold"
-                >
-                  {tag}
-                </span>
-              ))}
+              {Array.isArray(warung.tags) && warung.tags.length > 0 ? (
+                warung.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="px-3.5 py-1.5 rounded-full bg-[#85BB45]/15 text-[#3F6900] text-xs font-semibold"
+                  >
+                    {tag}
+                  </span>
+                ))
+              ) : (
+                <p className="text-xs text-[#8b9d91] italic">Belum ada menu andalan terdaftar.</p>
+              )}
             </div>
           </div>
         </div>

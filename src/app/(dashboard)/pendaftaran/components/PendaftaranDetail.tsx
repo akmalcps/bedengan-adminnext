@@ -176,7 +176,7 @@ export default function PendaftaranDetail() {
             </div>
           </div>
 
-          {application.images?.length > 0 && (
+          {Array.isArray(application.images) && application.images.length > 0 && (
             <div className="pt-2">
               <p className="text-xs font-semibold text-[#8b9d91] mb-2">Foto Pendukung</p>
               <div className="flex flex-wrap gap-3">

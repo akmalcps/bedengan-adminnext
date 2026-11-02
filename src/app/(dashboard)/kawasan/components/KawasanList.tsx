@@ -39,7 +39,7 @@ export default function KawasanList() {
   };
 
   const filteredKawasans = kawasans.filter((k) => {
-    const matchSearch = k.name.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = (k.name?.toLowerCase() ?? '').includes(search.toLowerCase());
     const matchStatus = statusFilter === 'all' || k.status === statusFilter;
     return matchSearch && matchStatus;
   });
@@ -124,17 +124,19 @@ export default function KawasanList() {
                     </td>
                     <td className="py-3.5 px-4 sm:px-6">
                       <div className="flex flex-wrap gap-1 max-w-xs">
-                        {kawasan.facilities?.slice(0, 2).map((f, i) => (
-                          <span
-                            key={i}
-                            className="text-[10px] bg-[#85BB45]/15 text-[#3F6900] font-semibold px-2 py-0.5 rounded-full"
-                          >
-                            {f}
-                          </span>
-                        ))}
-                        {(kawasan.facilities?.length || 0) > 2 && (
+                        {(Array.isArray(kawasan.facilities) ? kawasan.facilities : [])
+                          .slice(0, 2)
+                          .map((f, i) => (
+                            <span
+                              key={i}
+                              className="text-[10px] bg-[#85BB45]/15 text-[#3F6900] font-semibold px-2 py-0.5 rounded-full"
+                            >
+                              {f}
+                            </span>
+                          ))}
+                        {(Array.isArray(kawasan.facilities) ? kawasan.facilities.length : 0) > 2 && (
                           <span className="text-[10px] text-[#8b9d91] font-semibold px-1 py-0.5">
-                            +{kawasan.facilities.length - 2}
+                            +{(kawasan.facilities?.length || 0) - 2}
                           </span>
                         )}
                       </div>

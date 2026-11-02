@@ -1,85 +1,81 @@
 import { apiClient } from './apiClient';
-import { Application } from '@/src/types/application';
-import { initialApplication } from '@/src/data/mock/applicationMock';
+import { Application, ApplicationStatus } from '@/src/types/application';
 
-const STORAGE_KEY = 'bedengan_xplore_admin_applications';
+/**
+ * Adapter untuk mengubah format database/backend catalog menjadi interface Application frontend
+ */
+export const mapCatalogToApplication = (item: any): Application => {
+  const statusRaw = String(item.status || 'pending').toLowerCase();
+  let status: ApplicationStatus = 'Pending';
+  if (statusRaw === 'approved') status = 'Approved';
+  else if (statusRaw === 'rejected') status = 'Rejected';
 
-const getLocalStorageApplications = (): Application[] => {
-  if (typeof window === 'undefined') return initialApplication as unknown as Application[];
-  const data = localStorage.getItem(STORAGE_KEY);
-  if (!data) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(initialApplication));
-    return initialApplication as unknown as Application[];
-  }
-  try {
-    return JSON.parse(data);
-  } catch {
-    return initialApplication as unknown as Application[];
-  }
-};
+  let categoryLabel = 'UMKM Lokal';
+  if (item.category === 'rental') categoryLabel = 'Penyewaan Alat';
+  else if (item.category === 'warung') categoryLabel = 'Warung & Kuliner';
+  else if (item.category === 'photographer') categoryLabel = 'Jasa Fotografi';
 
-const setLocalStorageApplications = (data: Application[]): void => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    window.dispatchEvent(new Event('applications_updated'));
-  }
+  const imageList = item.image_url ? [item.image_url] : [];
+
+  return {
+    id: String(item.id),
+    applicantName: item.applicant_name || 'Warga Pemohon',
+    businessName: item.name || '',
+    category: categoryLabel,
+    description: item.description || '',
+    whatsapp: item.contact_phone || '',
+    address: item.location_note || '',
+    images: imageList,
+    status,
+    submittedAt: item.created_at || new Date().toISOString(),
+    rejectionReason: null,
+  };
 };
 
 export const applicationService = {
   getApplications: async (): Promise<Application[]> => {
-    try {
-      const response = await apiClient<any>('/applications');
-      const data = response.data || response;
-      if (Array.isArray(data)) return data;
-      return getLocalStorageApplications();
-    } catch {
-      return getLocalStorageApplications();
+    // Ambil seluruh katalog (status all) agar riwayat Pending, Approved, dan Rejected terbaca
+    const response = await apiClient<any>('/catalogs?status=all');
+    const rawList = response.data || response;
+    if (Array.isArray(rawList)) {
+      return rawList.map(mapCatalogToApplication);
     }
+    return [];
   },
 
   getApplicationById: async (id: string): Promise<Application | null> => {
-    try {
-      const response = await apiClient<any>(`/applications/${id}`);
-      return response.data || response || null;
-    } catch {
-      const apps = getLocalStorageApplications();
-      return apps.find((item) => String(item.id) === String(id)) || null;
-    }
+    const response = await apiClient<any>(`/catalogs/${id}`);
+    const data = response.data || response;
+    if (!data) return null;
+    return mapCatalogToApplication(data);
   },
 
   approveApplication: async (id: string): Promise<Application> => {
-    try {
-      const response = await apiClient<any>(`/applications/${id}/approve`, { method: 'POST' });
-      return response.data || response;
-    } catch {
-      const data = getLocalStorageApplications();
-      const index = data.findIndex((item) => String(item.id) === String(id));
-      if (index !== -1) {
-        data[index] = { ...data[index], status: 'Approved' };
-        setLocalStorageApplications(data);
-        return data[index];
-      }
-      throw new Error('Application not found');
-    }
+    const response = await apiClient<any>(`/catalogs/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        status: 'approved',
+      }),
+    });
+
+    const updated = response.data || response;
+    return mapCatalogToApplication(updated);
   },
 
-  rejectApplication: async (id: string, reason: string): Promise<Application> => {
-    try {
-      const response = await apiClient<any>(`/applications/${id}/reject`, {
-        method: 'POST',
-        body: JSON.stringify({ reason }),
-      });
-      return response.data || response;
-    } catch {
-      const data = getLocalStorageApplications();
-      const index = data.findIndex((item) => String(item.id) === String(id));
-      if (index !== -1) {
-        data[index] = { ...data[index], status: 'Rejected', rejectionReason: reason };
-        setLocalStorageApplications(data);
-        return data[index];
-      }
-      throw new Error('Application not found');
+  rejectApplication: async (id: string, reason?: string): Promise<Application> => {
+    const response = await apiClient<any>(`/catalogs/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        status: 'rejected',
+      }),
+    });
+
+    const updated = response.data || response;
+    const mapped = mapCatalogToApplication(updated);
+    if (reason) {
+      mapped.rejectionReason = reason;
     }
+    return mapped;
   },
 };
 

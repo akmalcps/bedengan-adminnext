@@ -50,7 +50,10 @@ export default function RentalList() {
   };
 
   const filteredRentals = rentals.filter((r) => {
-    const matchSearch = r.name?.toLowerCase().includes(search.toLowerCase());
+    const searchLower = search.toLowerCase();
+    const matchSearch =
+      (r.name?.toLowerCase() ?? '').includes(searchLower) ||
+      (r.description?.toLowerCase() ?? '').includes(searchLower);
     const matchStatus = statusFilter === 'all' || r.status === statusFilter;
     return matchSearch && matchStatus;
   });
@@ -148,10 +151,10 @@ export default function RentalList() {
                       <div className="text-xs text-[#8b9d91]">{rental.whatsapp || '-'}</div>
                     </td>
                     <td className="py-3.5 px-4 sm:px-6 text-[#4a5c50]">
-                      {rental.items?.length || 0} item
+                      {Array.isArray(rental.items) ? rental.items.length : 0} item
                     </td>
                     <td className="py-3.5 px-4 sm:px-6 text-[#4a5c50]">
-                      {rental.openingTime} - {rental.closingTime}
+                      {rental.openingTime} - {rental.closingTime} WIB
                     </td>
                     <td className="py-3.5 px-4 sm:px-6">
                       <span

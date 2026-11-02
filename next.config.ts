@@ -4,9 +4,8 @@ const nextConfig: NextConfig = {
   /* config options here */
   experimental: {
     agentFeedback: true,
+    ppr: false,
   },
-  cacheComponents: true,
-  partialPrefetching: true,
   turbopack: {
     rules: {
       "*.css": {
@@ -18,3 +17,4 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+
