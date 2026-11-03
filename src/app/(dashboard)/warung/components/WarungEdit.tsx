@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Loader2, Upload, Plus, X } from 'lucide-react';
 import { warungService } from '@/src/services/warungService';
 import { Warung } from '@/src/types/warung';
+import { sanitizePhoneInput, validatePhoneNumber, formatOperatingHours } from '@/src/utils/format';
 
 export default function WarungEdit() {
   const params = useParams();
@@ -13,6 +14,9 @@ export default function WarungEdit() {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<Warung | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [tagInput, setTagInput] = useState('');
 
   useEffect(() => {
@@ -22,6 +26,7 @@ export default function WarungEdit() {
         const data = await warungService.getById(id);
         if (data) {
           setFormData(data);
+          setImagePreview(data.image || '');
         } else {
           router.push('/admin/warung');
         }
@@ -38,7 +43,16 @@ export default function WarungEdit() {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => (prev ? { ...prev, [name]: value } : prev));
+    let finalValue = value;
+
+    if (name === 'whatsapp') {
+      finalValue = sanitizePhoneInput(value);
+    }
+
+    setFormData((prev) => (prev ? { ...prev, [name]: finalValue } : prev));
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: '' }));
+    }
   };
 
   const handleAddTag = () => {
@@ -59,22 +73,101 @@ export default function WarungEdit() {
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const objectUrl = URL.createObjectURL(file);
-      setFormData((prev) => (prev ? { ...prev, image: objectUrl } : prev));
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setErrors((prev) => ({
+        ...prev,
+        image: 'Format file tidak didukung! Hanya .jpg, .jpeg, .png, atau .webp yang diperbolehkan.',
+      }));
+      return;
     }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setErrors((prev) => ({
+        ...prev,
+        image: 'Ukuran file terlalu besar! Maksimal 5MB.',
+      }));
+      return;
+    }
+
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+    if (errors.image) {
+      setErrors((prev) => ({ ...prev, image: '' }));
+    }
+  };
+
+  const validate = (): boolean => {
+    if (!formData) return false;
+    const errs: Record<string, string> = {};
+
+    if (!formData.name.trim()) {
+      errs.name = 'Nama warung wajib diisi!';
+    }
+    if (!formData.description.trim()) {
+      errs.description = 'Deskripsi warung wajib diisi!';
+    }
+    if (!formData.whatsapp.trim()) {
+      errs.whatsapp = 'Nomor WhatsApp wajib diisi!';
+    } else if (!validatePhoneNumber(formData.whatsapp)) {
+      errs.whatsapp = 'Format nomor WhatsApp tidak valid (contoh: 081234567890)!';
+    }
+    if (!formData.address.trim()) {
+      errs.address = 'Alamat lokasi warung wajib diisi!';
+    }
+
+    const [openH, openM] = formData.openingTime.split(':').map(Number);
+    const [closeH, closeM] = formData.closingTime.split(':').map(Number);
+    const openMinutes = openH * 60 + openM;
+    const closeMinutes = closeH * 60 + closeM;
+
+    if (closeMinutes <= openMinutes) {
+      errs.closingTime = 'Jam tutup harus lebih besar daripada jam buka!';
+    }
+
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData) return;
+
+    if (!validate()) {
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      await warungService.update(id, formData);
+      const dataPayload = new FormData();
+      dataPayload.append('category', 'warung');
+      dataPayload.append('name', formData.name.trim());
+      dataPayload.append('description', formData.description.trim());
+      dataPayload.append('contact_phone', formData.whatsapp.trim());
+      dataPayload.append('location_note', formData.address.trim());
+      dataPayload.append(
+        'operating_hours',
+        formatOperatingHours(formData.openingTime, formData.closingTime)
+      );
+      dataPayload.append('status', formData.status === 'active' ? 'approved' : 'pending');
+      dataPayload.append('tags', formData.tags.join(', '));
+
+      if (imageFile) {
+        dataPayload.append('image', imageFile);
+      } else if (formData.image) {
+        dataPayload.append('image_url', formData.image);
+      }
+
+      await warungService.update(id, dataPayload);
       router.push(`/admin/warung/${id}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating warung:', error);
-      alert('Gagal mengupdate warung.');
+      setErrors((prev) => ({
+        ...prev,
+        submit: error?.message || 'Gagal memperbarui data warung.',
+      }));
     } finally {
       setIsSubmitting(false);
     }
@@ -108,6 +201,12 @@ export default function WarungEdit() {
       </div>
 
       <div className="bg-white rounded-2xl border border-[#d4e0d7] p-6 sm:p-8 shadow-xs">
+        {errors.submit && (
+          <div className="bg-[#FDEEEA] border border-[#E74C3C]/30 text-[#E74C3C] px-4 py-3 rounded-xl text-xs sm:text-sm font-medium mb-5">
+            {errors.submit}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
             <h3 className="text-base font-bold text-[#1C2B20] pb-2 border-b border-[#d4e0d7]">
@@ -121,9 +220,11 @@ export default function WarungEdit() {
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                required
-                className="w-full px-4 py-2.5 rounded-xl border border-[#d4e0d7] text-sm text-[#1C2B20] focus:outline-none focus:border-[#85BB45]"
+                className={`w-full px-4 py-2.5 rounded-xl border text-sm text-[#1C2B20] focus:outline-none ${
+                  errors.name ? 'border-red-500 focus:border-red-500' : 'border-[#d4e0d7] focus:border-[#85BB45]'
+                }`}
               />
+              {errors.name && <p className="text-red-500 text-xs font-medium">{errors.name}</p>}
             </div>
 
             <div className="space-y-1.5">
@@ -132,10 +233,14 @@ export default function WarungEdit() {
                 name="description"
                 value={formData.description}
                 onChange={handleChange}
-                required
                 rows={3}
-                className="w-full px-4 py-2.5 rounded-xl border border-[#d4e0d7] text-sm text-[#1C2B20] focus:outline-none focus:border-[#85BB45] resize-y"
+                className={`w-full px-4 py-2.5 rounded-xl border text-sm text-[#1C2B20] focus:outline-none resize-y ${
+                  errors.description ? 'border-red-500 focus:border-red-500' : 'border-[#d4e0d7] focus:border-[#85BB45]'
+                }`}
               />
+              {errors.description && (
+                <p className="text-red-500 text-xs font-medium">{errors.description}</p>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -146,9 +251,13 @@ export default function WarungEdit() {
                   name="whatsapp"
                   value={formData.whatsapp}
                   onChange={handleChange}
-                  required
-                  className="w-full px-4 py-2.5 rounded-xl border border-[#d4e0d7] text-sm text-[#1C2B20] focus:outline-none focus:border-[#85BB45]"
+                  className={`w-full px-4 py-2.5 rounded-xl border text-sm text-[#1C2B20] focus:outline-none ${
+                    errors.whatsapp ? 'border-red-500 focus:border-red-500' : 'border-[#d4e0d7] focus:border-[#85BB45]'
+                  }`}
                 />
+                {errors.whatsapp && (
+                  <p className="text-red-500 text-xs font-medium">{errors.whatsapp}</p>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -158,9 +267,13 @@ export default function WarungEdit() {
                   name="address"
                   value={formData.address}
                   onChange={handleChange}
-                  required
-                  className="w-full px-4 py-2.5 rounded-xl border border-[#d4e0d7] text-sm text-[#1C2B20] focus:outline-none focus:border-[#85BB45]"
+                  className={`w-full px-4 py-2.5 rounded-xl border text-sm text-[#1C2B20] focus:outline-none ${
+                    errors.address ? 'border-red-500 focus:border-red-500' : 'border-[#d4e0d7] focus:border-[#85BB45]'
+                  }`}
                 />
+                {errors.address && (
+                  <p className="text-red-500 text-xs font-medium">{errors.address}</p>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -170,7 +283,6 @@ export default function WarungEdit() {
                   name="openingTime"
                   value={formData.openingTime}
                   onChange={handleChange}
-                  required
                   className="w-full px-4 py-2.5 rounded-xl border border-[#d4e0d7] text-sm text-[#1C2B20] focus:outline-none focus:border-[#85BB45]"
                 />
               </div>
@@ -182,9 +294,13 @@ export default function WarungEdit() {
                   name="closingTime"
                   value={formData.closingTime}
                   onChange={handleChange}
-                  required
-                  className="w-full px-4 py-2.5 rounded-xl border border-[#d4e0d7] text-sm text-[#1C2B20] focus:outline-none focus:border-[#85BB45]"
+                  className={`w-full px-4 py-2.5 rounded-xl border text-sm text-[#1C2B20] focus:outline-none ${
+                    errors.closingTime ? 'border-red-500 focus:border-red-500' : 'border-[#d4e0d7] focus:border-[#85BB45]'
+                  }`}
                 />
+                {errors.closingTime && (
+                  <p className="text-red-500 text-xs font-medium">{errors.closingTime}</p>
+                )}
               </div>
             </div>
 
@@ -231,21 +347,22 @@ export default function WarungEdit() {
             </div>
 
             <div className="flex flex-wrap gap-2 pt-1">
-              {formData.tags?.map((tag) => (
-                <span
-                  key={tag}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#85BB45]/15 text-[#3F6900] text-xs font-semibold"
-                >
-                  {tag}
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveTag(tag)}
-                    className="hover:text-red-600 transition"
+              {Array.isArray(formData.tags) &&
+                formData.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#85BB45]/15 text-[#3F6900] text-xs font-semibold"
                   >
-                    <X size={14} />
-                  </button>
-                </span>
-              ))}
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveTag(tag)}
+                      className="hover:text-red-600 transition"
+                    >
+                      <X size={14} />
+                    </button>
+                  </span>
+                ))}
             </div>
           </div>
 
@@ -260,19 +377,20 @@ export default function WarungEdit() {
                 <span>Ganti Foto</span>
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp"
                   onChange={handleImageChange}
                   className="hidden"
                 />
               </label>
-              {formData.image && (
+              {imagePreview && (
                 <img
-                  src={formData.image}
+                  src={imagePreview}
                   alt="Preview"
                   className="w-24 h-16 rounded-xl object-cover border border-[#d4e0d7]"
                 />
               )}
             </div>
+            {errors.image && <p className="text-red-500 text-xs font-medium">{errors.image}</p>}
           </div>
 
           <div className="pt-4 border-t border-[#d4e0d7] flex items-center justify-end gap-3">

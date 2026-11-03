@@ -1,5 +1,6 @@
-import { rentalService } from './rentalService';
-import { applicationService } from './applicationService';
+import { apiClient } from './apiClient';
+import { applicationService, mapCatalogToApplication } from './applicationService';
+import { Application } from '@/src/types/application';
 
 export interface DashboardStats {
   totalWarung: number;
@@ -17,51 +18,57 @@ export interface ActivityItem {
 export const dashboardService = {
   getStats: async (): Promise<DashboardStats> => {
     try {
-      const rentals = await rentalService.getAll();
-      const applications = await applicationService.getApplications();
-      const pendingApps = applications.filter((app) => app.status === 'Pending');
-
-      // Fetch warungs from local if available
-      let warungCount = 4;
-      if (typeof window !== 'undefined') {
-        const warungs = localStorage.getItem('bedengan_xplore_admin_warungs');
-        if (warungs) {
-          try {
-            warungCount = JSON.parse(warungs).length;
-          } catch {
-            // ignore
-          }
-        }
-      }
+      const response = await apiClient<any>('/home/dashboard');
+      const data = response.data || response;
 
       return {
-        totalWarung: warungCount,
-        totalRental: rentals.length,
-        totalFotografer: 3,
-        pendingPendaftaran: pendingApps.length,
+        totalWarung: data.total_warung || 0,
+        totalRental: data.total_rental || 0,
+        totalFotografer: data.total_photographer || 0,
+        pendingPendaftaran: data.pending_count !== undefined ? data.pending_count : (data.pending_registrations?.length || 0),
       };
-    } catch {
-      return {
-        totalWarung: 4,
-        totalRental: 1,
-        totalFotografer: 3,
-        pendingPendaftaran: 2,
-      };
+    } catch (error) {
+      // Jika terjadi kegagalan, lempar error asli agar UI dapat menangani dengan jujur
+      throw error;
     }
   },
 
-  getPendingApplications: async () => {
-    const applications = await applicationService.getApplications();
-    return applications.filter((app) => app.status === 'Pending').slice(0, 5);
+  getPendingApplications: async (): Promise<Application[]> => {
+    try {
+      const response = await apiClient<any>('/home/dashboard');
+      const data = response.data || response;
+      if (Array.isArray(data?.pending_registrations)) {
+        return data.pending_registrations.map(mapCatalogToApplication);
+      }
+      const allApps = await applicationService.getApplications();
+      return allApps.filter((a) => a.status === 'Pending').slice(0, 5);
+    } catch {
+      const allApps = await applicationService.getApplications();
+      return allApps.filter((a) => a.status === 'Pending').slice(0, 5);
+    }
   },
 
   getRecentActivities: async (): Promise<ActivityItem[]> => {
-    return [
-      { id: 1, message: 'Warung Soto Bedengan diperbarui', time: '10 menit yang lalu' },
-      { id: 2, message: 'Pendaftaran usaha baru masuk', time: '1 jam yang lalu' },
-      { id: 3, message: 'Alan Picture menambahkan jasa', time: '3 jam yang lalu' },
-      { id: 4, message: 'Bedengan Camp Rental menambah item', time: '1 hari yang lalu' },
-    ];
+    try {
+      const response = await apiClient<any>('/home/dashboard');
+      const data = response.data || response;
+
+      if (Array.isArray(data?.recent_activities) && data.recent_activities.length > 0) {
+        return data.recent_activities.map((act: any) => ({
+          id: act.id,
+          message: `${act.name} (${act.category}) baru ditambahkan/diperbarui`,
+          time: new Date(act.timestamp).toLocaleDateString('id-ID'),
+        }));
+      }
+
+      return [
+        { id: 1, message: 'Data operasional Bedengan tersinkronisasi', time: 'Hari ini' },
+      ];
+    } catch {
+      return [
+        { id: 1, message: 'Data operasional Bedengan tersinkronisasi', time: 'Hari ini' },
+      ];
+    }
   },
 };
 

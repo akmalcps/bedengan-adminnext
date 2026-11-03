@@ -50,9 +50,10 @@ export default function WarungList() {
   };
 
   const filteredWarungs = warungs.filter((w) => {
+    const searchLower = search.toLowerCase();
     const matchSearch =
-      w.name.toLowerCase().includes(search.toLowerCase()) ||
-      w.tags?.some((t) => t.toLowerCase().includes(search.toLowerCase()));
+      (w.name?.toLowerCase() ?? '').includes(searchLower) ||
+      (Array.isArray(w.tags) && w.tags.some((t) => (t?.toLowerCase() ?? '').includes(searchLower)));
     const matchStatus = statusFilter === 'all' || w.status === statusFilter;
     return matchSearch && matchStatus;
   });
@@ -139,22 +140,23 @@ export default function WarungList() {
                     </td>
                     <td className="py-3.5 px-4 sm:px-6">
                       <div className="font-semibold text-[#1C2B20]">{warung.name}</div>
-                      <div className="text-xs text-[#8b9d91]">{warung.whatsapp}</div>
+                      <div className="text-xs text-[#8b9d91]">{warung.whatsapp || '-'}</div>
                     </td>
                     <td className="py-3.5 px-4 sm:px-6">
                       <div className="flex flex-wrap gap-1 max-w-xs">
-                        {warung.tags?.map((tag, i) => (
-                          <span
-                            key={i}
-                            className="text-[10px] bg-[#85BB45]/15 text-[#3F6900] font-semibold px-2 py-0.5 rounded-full"
-                          >
-                            {tag}
-                          </span>
-                        ))}
+                        {Array.isArray(warung.tags) &&
+                          warung.tags.map((tag, i) => (
+                            <span
+                              key={i}
+                              className="text-[10px] bg-[#85BB45]/15 text-[#3F6900] font-semibold px-2 py-0.5 rounded-full"
+                            >
+                              {tag}
+                            </span>
+                          ))}
                       </div>
                     </td>
                     <td className="py-3.5 px-4 sm:px-6 text-[#4a5c50]">
-                      {warung.openingTime} - {warung.closingTime}
+                      {warung.openingTime} - {warung.closingTime} WIB
                     </td>
                     <td className="py-3.5 px-4 sm:px-6">
                       <span

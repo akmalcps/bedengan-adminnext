@@ -146,7 +146,7 @@ export default function FotograferDetail() {
         </div>
 
         {/* Galeri Portofolio */}
-        {fotografer.gallery?.length > 0 && (
+        {Array.isArray(fotografer.gallery) && fotografer.gallery.length > 0 && (
           <div className="space-y-3 pt-2">
             <h4 className="text-sm font-bold text-[#1C2B20]">Portofolio Foto</h4>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -165,10 +165,10 @@ export default function FotograferDetail() {
         {/* Paket Layanan */}
         <div className="space-y-3 pt-2">
           <h4 className="text-sm font-bold text-[#1C2B20]">
-            Paket Layanan Tersedia ({fotografer.services?.length || 0})
+            Paket Layanan Tersedia ({Array.isArray(fotografer.services) ? fotografer.services.length : 0})
           </h4>
 
-          {(fotografer.services || []).length > 0 ? (
+          {Array.isArray(fotografer.services) && fotografer.services.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {fotografer.services.map((s) => (
                 <div

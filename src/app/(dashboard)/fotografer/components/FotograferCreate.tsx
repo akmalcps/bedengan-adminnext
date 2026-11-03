@@ -5,10 +5,13 @@ import { useRouter } from 'next/navigation';
 import { Plus, Trash2, ArrowLeft, Loader2, Upload } from 'lucide-react';
 import { fotograferService } from '@/src/services/fotograferService';
 import { FotograferServiceItem } from '@/src/types/fotografer';
+import { sanitizePhoneInput, validatePhoneNumber } from '@/src/utils/format';
 
 export default function FotograferCreate() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
     name: '',
     instagramUsername: '',
@@ -26,12 +29,47 @@ export default function FotograferCreate() {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === 'whatsapp') {
+      const sanitized = sanitizePhoneInput(value);
+      setFormData((prev) => ({ ...prev, [name]: sanitized }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
+
+    if (errors[name]) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    }
   };
 
   const handleProfileImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        setErrors((prev) => ({
+          ...prev,
+          profileImage: 'Format foto harus berupa JPG, PNG, atau WEBP.',
+        }));
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setErrors((prev) => ({
+          ...prev,
+          profileImage: 'Ukuran foto maksimal adalah 5MB.',
+        }));
+        return;
+      }
+
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.profileImage;
+        return next;
+      });
+      setProfileImageFile(file);
       const objectUrl = URL.createObjectURL(file);
       setFormData((prev) => ({ ...prev, profileImage: objectUrl }));
     }
@@ -84,15 +122,78 @@ export default function FotograferCreate() {
     }));
   };
 
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.name.trim()) {
+      newErrors.name = 'Nama fotografer wajib diisi.';
+    }
+
+    if (!formData.instagramUsername.trim()) {
+      newErrors.instagramUsername = 'Username Instagram wajib diisi.';
+    }
+
+    if (!formData.whatsapp.trim()) {
+      newErrors.whatsapp = 'Nomor WhatsApp wajib diisi.';
+    } else if (!validatePhoneNumber(formData.whatsapp.trim())) {
+      newErrors.whatsapp = 'Format nomor WhatsApp tidak valid (contoh: 08123456789, 10-14 digit).';
+    }
+
+    if (!formData.location.trim()) {
+      newErrors.location = 'Cakupan area wajib diisi.';
+    }
+
+    if (!formData.description.trim()) {
+      newErrors.description = 'Deskripsi wajib diisi.';
+    }
+
+    formData.services.forEach((s, index) => {
+      if (!s.name.trim()) {
+        newErrors[`service_${index}_name`] = `Nama paket ke-${index + 1} tidak boleh kosong.`;
+      }
+      const priceNum = Number(s.startingPrice);
+      if (isNaN(priceNum) || priceNum <= 0) {
+        newErrors[`service_${index}_price`] = `Harga paket ke-${index + 1} harus lebih besar dari 0.`;
+      }
+    });
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateForm()) return;
+
     setIsSubmitting(true);
     try {
-      await fotograferService.create(formData);
+      if (profileImageFile) {
+        const payload = new FormData();
+        payload.append('name', formData.name.trim());
+        payload.append('instagramUsername', formData.instagramUsername.trim());
+        payload.append('instagramUrl', formData.instagramUrl.trim());
+        payload.append('whatsapp', formData.whatsapp.trim());
+        payload.append('location', formData.location.trim());
+        payload.append('description', formData.description.trim());
+        payload.append('status', formData.status);
+        payload.append('services', JSON.stringify(formData.services));
+        payload.append('image', profileImageFile);
+        await fotograferService.create(payload as any);
+      } else {
+        await fotograferService.create({
+          ...formData,
+          name: formData.name.trim(),
+          instagramUsername: formData.instagramUsername.trim(),
+          instagramUrl: formData.instagramUrl.trim(),
+          whatsapp: formData.whatsapp.trim(),
+          location: formData.location.trim(),
+          description: formData.description.trim(),
+        });
+      }
       router.push('/admin/fotografer');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating fotografer:', error);
-      alert('Gagal menambahkan fotografer.');
+      alert(error?.message || 'Gagal menambahkan fotografer.');
     } finally {
       setIsSubmitting(false);
     }
@@ -115,7 +216,7 @@ export default function FotograferCreate() {
       </div>
 
       <div className="bg-white rounded-2xl border border-[#d4e0d7] p-6 sm:p-8 shadow-xs">
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6" noValidate>
           <div className="space-y-4">
             <h3 className="text-base font-bold text-[#1C2B20] pb-2 border-b border-[#d4e0d7]">
               Informasi Umum
@@ -128,10 +229,14 @@ export default function FotograferCreate() {
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                required
                 placeholder="Contoh: The Prime Photography"
-                className="w-full px-4 py-2.5 rounded-xl border border-[#d4e0d7] text-sm text-[#1C2B20] focus:outline-none focus:border-[#85BB45]"
+                className={`w-full px-4 py-2.5 rounded-xl border text-sm text-[#1C2B20] focus:outline-none transition ${
+                  errors.name
+                    ? 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-100'
+                    : 'border-[#d4e0d7] focus:border-[#85BB45]'
+                }`}
               />
+              {errors.name && <p className="text-xs text-red-500 font-medium">{errors.name}</p>}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -142,10 +247,16 @@ export default function FotograferCreate() {
                   name="instagramUsername"
                   value={formData.instagramUsername}
                   onChange={handleChange}
-                  required
                   placeholder="@theprimephotography"
-                  className="w-full px-4 py-2.5 rounded-xl border border-[#d4e0d7] text-sm text-[#1C2B20] focus:outline-none focus:border-[#85BB45]"
+                  className={`w-full px-4 py-2.5 rounded-xl border text-sm text-[#1C2B20] focus:outline-none transition ${
+                    errors.instagramUsername
+                      ? 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-100'
+                      : 'border-[#d4e0d7] focus:border-[#85BB45]'
+                  }`}
                 />
+                {errors.instagramUsername && (
+                  <p className="text-xs text-red-500 font-medium">{errors.instagramUsername}</p>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -167,10 +278,16 @@ export default function FotograferCreate() {
                   name="whatsapp"
                   value={formData.whatsapp}
                   onChange={handleChange}
-                  required
                   placeholder="081234567894"
-                  className="w-full px-4 py-2.5 rounded-xl border border-[#d4e0d7] text-sm text-[#1C2B20] focus:outline-none focus:border-[#85BB45]"
+                  className={`w-full px-4 py-2.5 rounded-xl border text-sm text-[#1C2B20] focus:outline-none transition ${
+                    errors.whatsapp
+                      ? 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-100'
+                      : 'border-[#d4e0d7] focus:border-[#85BB45]'
+                  }`}
                 />
+                {errors.whatsapp && (
+                  <p className="text-xs text-red-500 font-medium">{errors.whatsapp}</p>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -180,9 +297,15 @@ export default function FotograferCreate() {
                   name="location"
                   value={formData.location}
                   onChange={handleChange}
-                  required
-                  className="w-full px-4 py-2.5 rounded-xl border border-[#d4e0d7] text-sm text-[#1C2B20] focus:outline-none focus:border-[#85BB45]"
+                  className={`w-full px-4 py-2.5 rounded-xl border text-sm text-[#1C2B20] focus:outline-none transition ${
+                    errors.location
+                      ? 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-100'
+                      : 'border-[#d4e0d7] focus:border-[#85BB45]'
+                  }`}
                 />
+                {errors.location && (
+                  <p className="text-xs text-red-500 font-medium">{errors.location}</p>
+                )}
               </div>
             </div>
 
@@ -192,11 +315,17 @@ export default function FotograferCreate() {
                 name="description"
                 value={formData.description}
                 onChange={handleChange}
-                required
                 rows={3}
                 placeholder="Spesialisasi foto, tema, pengalaman..."
-                className="w-full px-4 py-2.5 rounded-xl border border-[#d4e0d7] text-sm text-[#1C2B20] focus:outline-none focus:border-[#85BB45] resize-y"
+                className={`w-full px-4 py-2.5 rounded-xl border text-sm text-[#1C2B20] focus:outline-none resize-y transition ${
+                  errors.description
+                    ? 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-100'
+                    : 'border-[#d4e0d7] focus:border-[#85BB45]'
+                }`}
               />
+              {errors.description && (
+                <p className="text-xs text-red-500 font-medium">{errors.description}</p>
+              )}
             </div>
           </div>
 
@@ -214,7 +343,7 @@ export default function FotograferCreate() {
                   <span>Pilih Foto</span>
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp"
                     onChange={handleProfileImageChange}
                     className="hidden"
                   />
@@ -227,6 +356,9 @@ export default function FotograferCreate() {
                   />
                 )}
               </div>
+              {errors.profileImage && (
+                <p className="text-xs text-red-500 font-medium">{errors.profileImage}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -236,7 +368,7 @@ export default function FotograferCreate() {
                 <span>Upload Foto Galeri</span>
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp"
                   multiple
                   onChange={handleGalleryChange}
                   className="hidden"
@@ -280,56 +412,65 @@ export default function FotograferCreate() {
               <p className="text-xs text-[#8b9d91] italic py-2">Belum ada paket layanan foto.</p>
             ) : (
               <div className="space-y-3">
-                {formData.services.map((s) => (
+                {formData.services.map((s, index) => (
                   <div
                     key={s.id}
-                    className="p-3.5 bg-[#EEF5EA]/50 rounded-xl border border-[#d4e0d7]/80 grid grid-cols-1 sm:grid-cols-12 gap-3 items-end"
+                    className="p-3.5 bg-[#EEF5EA]/50 rounded-xl border border-[#d4e0d7]/80 space-y-2"
                   >
-                    <div className="sm:col-span-4 space-y-1">
-                      <label className="text-[11px] font-semibold text-[#8b9d91]">Nama Paket</label>
-                      <input
-                        type="text"
-                        value={s.name}
-                        onChange={(e) => handleServiceChange(s.id, 'name', e.target.value)}
-                        required
-                        placeholder="Contoh: Prewedding"
-                        className="w-full px-3 py-1.5 bg-white border border-[#d4e0d7] rounded-lg text-xs"
-                      />
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+                      <div className="sm:col-span-4 space-y-1">
+                        <label className="text-[11px] font-semibold text-[#8b9d91]">Nama Paket</label>
+                        <input
+                          type="text"
+                          value={s.name}
+                          onChange={(e) => handleServiceChange(s.id, 'name', e.target.value)}
+                          placeholder="Contoh: Prewedding"
+                          className={`w-full px-3 py-1.5 bg-white border rounded-lg text-xs ${
+                            errors[`service_${index}_name`] ? 'border-red-500' : 'border-[#d4e0d7]'
+                          }`}
+                        />
+                      </div>
+                      <div className="sm:col-span-4 space-y-1">
+                        <label className="text-[11px] font-semibold text-[#8b9d91]">Deskripsi</label>
+                        <input
+                          type="text"
+                          value={s.description}
+                          onChange={(e) => handleServiceChange(s.id, 'description', e.target.value)}
+                          placeholder="Durasi sesi / output foto"
+                          className="w-full px-3 py-1.5 bg-white border border-[#d4e0d7] rounded-lg text-xs"
+                        />
+                      </div>
+                      <div className="sm:col-span-3 space-y-1">
+                        <label className="text-[11px] font-semibold text-[#8b9d91]">
+                          Mulai Dari (Rp)
+                        </label>
+                        <input
+                          type="number"
+                          value={s.startingPrice}
+                          onChange={(e) =>
+                            handleServiceChange(s.id, 'startingPrice', e.target.value)
+                          }
+                          placeholder="500000"
+                          className={`w-full px-3 py-1.5 bg-white border rounded-lg text-xs ${
+                            errors[`service_${index}_price`] ? 'border-red-500' : 'border-[#d4e0d7]'
+                          }`}
+                        />
+                      </div>
+                      <div className="sm:col-span-1 flex justify-end pb-0.5">
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveService(s.id)}
+                          className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </div>
-                    <div className="sm:col-span-4 space-y-1">
-                      <label className="text-[11px] font-semibold text-[#8b9d91]">Deskripsi</label>
-                      <input
-                        type="text"
-                        value={s.description}
-                        onChange={(e) => handleServiceChange(s.id, 'description', e.target.value)}
-                        placeholder="Durasi sesi / output foto"
-                        className="w-full px-3 py-1.5 bg-white border border-[#d4e0d7] rounded-lg text-xs"
-                      />
-                    </div>
-                    <div className="sm:col-span-3 space-y-1">
-                      <label className="text-[11px] font-semibold text-[#8b9d91]">
-                        Mulai Dari (Rp)
-                      </label>
-                      <input
-                        type="number"
-                        value={s.startingPrice}
-                        onChange={(e) =>
-                          handleServiceChange(s.id, 'startingPrice', e.target.value)
-                        }
-                        required
-                        placeholder="500000"
-                        className="w-full px-3 py-1.5 bg-white border border-[#d4e0d7] rounded-lg text-xs"
-                      />
-                    </div>
-                    <div className="sm:col-span-1 flex justify-end pb-0.5">
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveService(s.id)}
-                        className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
+                    {(errors[`service_${index}_name`] || errors[`service_${index}_price`]) && (
+                      <div className="text-[11px] text-red-500 font-medium">
+                        {errors[`service_${index}_name`]} {errors[`service_${index}_price`]}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

@@ -31,9 +31,11 @@ export default function PendaftaranList() {
 
   const filteredApplications = applications.filter((a) => {
     const matchSearch =
-      a.businessName.toLowerCase().includes(search.toLowerCase()) ||
-      a.applicantName.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === 'all' || a.status === statusFilter;
+      (a.businessName?.toLowerCase() ?? '').includes(search.toLowerCase()) ||
+      (a.applicantName?.toLowerCase() ?? '').includes(search.toLowerCase());
+    const matchStatus =
+      statusFilter === 'all' ||
+      (a.status?.toLowerCase() ?? '') === statusFilter.toLowerCase();
     return matchSearch && matchStatus;
   });
 

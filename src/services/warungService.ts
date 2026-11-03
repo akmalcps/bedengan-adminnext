@@ -1,111 +1,145 @@
 import { apiClient } from './apiClient';
 import { Warung } from '@/src/types/warung';
-import { initialWarung } from '@/src/data/mock/warungMock';
+import { ensureArray, formatOperatingHours, parseOperatingHours } from '@/src/utils/format';
 
-const STORAGE_KEY = 'bedengan_xplore_admin_warungs';
+/**
+ * Adapter untuk mengubah format database/backend catalog menjadi interface Warung frontend
+ */
+export const mapCatalogToWarung = (item: any): Warung => {
+  const { openingTime, closingTime } = parseOperatingHours(item.operating_hours);
+  const statusStr = String(item.status || '').toLowerCase();
+  const isActive = statusStr === 'approved' || statusStr === 'active';
 
-const getLocalWarungs = (): Warung[] => {
-  if (typeof window === 'undefined') return initialWarung;
-  const data = localStorage.getItem(STORAGE_KEY);
-  if (!data) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(initialWarung));
-    return initialWarung;
-  }
-  try {
-    return JSON.parse(data);
-  } catch {
-    return initialWarung;
-  }
-};
-
-const saveLocalWarungs = (data: Warung[]): void => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  }
+  return {
+    id: String(item.id),
+    name: item.name || '',
+    description: item.description || '',
+    whatsapp: item.contact_phone || item.whatsapp || '',
+    address: item.location_note || item.address || '',
+    image: item.image_url || item.image || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=500',
+    openingTime,
+    closingTime,
+    tags: ensureArray(item.tags),
+    status: isActive ? 'active' : 'inactive',
+    updatedAt: item.updated_at || item.created_at || new Date().toISOString(),
+  };
 };
 
 export const warungService = {
   getAll: async (): Promise<Warung[]> => {
-    try {
-      const response = await apiClient<any>('/warungs');
-      const data = response.data || response;
-      if (Array.isArray(data)) return data;
-      return getLocalWarungs();
-    } catch {
-      return getLocalWarungs();
+    const response = await apiClient<any>('/catalogs?category=warung');
+    const rawList = response.data || response;
+    if (Array.isArray(rawList)) {
+      return rawList.map(mapCatalogToWarung);
     }
+    return [];
   },
 
   getById: async (id: string): Promise<Warung | null> => {
-    try {
-      const response = await apiClient<any>(`/warungs/${id}`);
-      return response.data || response || null;
-    } catch {
-      const items = getLocalWarungs();
-      return items.find((w) => String(w.id) === String(id)) || null;
-    }
+    const response = await apiClient<any>(`/catalogs/${id}`);
+    const data = response.data || response;
+    if (!data) return null;
+    return mapCatalogToWarung(data);
   },
 
-  create: async (data: Omit<Warung, 'id'>): Promise<Warung> => {
-    try {
-      const response = await apiClient<any>('/warungs', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
-      return response.data || response;
-    } catch {
-      const items = getLocalWarungs();
-      const newWarung: Warung = {
-        ...data,
-        id: Date.now().toString(),
-        updatedAt: new Date().toISOString(),
-      };
-      saveLocalWarungs([...items, newWarung]);
-      return newWarung;
-    }
-  },
+  create: async (data: Omit<Warung, 'id'> | FormData): Promise<Warung> => {
+    let body: any;
 
-  update: async (id: string, data: Partial<Warung>): Promise<Warung> => {
-    try {
-      const response = await apiClient<any>(`/warungs/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      });
-      return response.data || response;
-    } catch {
-      const items = getLocalWarungs();
-      const index = items.findIndex((w) => String(w.id) === String(id));
-      if (index !== -1) {
-        items[index] = { ...items[index], ...data, updatedAt: new Date().toISOString() };
-        saveLocalWarungs(items);
-        return items[index];
+    if (typeof FormData !== 'undefined' && data instanceof FormData) {
+      if (!data.has('category')) {
+        data.append('category', 'warung');
       }
-      throw new Error('Warung not found');
+      body = data;
+    } else {
+      const w = data as Omit<Warung, 'id'>;
+      body = JSON.stringify({
+        category: 'warung',
+        name: w.name,
+        description: w.description,
+        contact_phone: w.whatsapp,
+        location_note: w.address,
+        operating_hours: formatOperatingHours(w.openingTime, w.closingTime),
+        tags: Array.isArray(w.tags) ? w.tags.join(', ') : w.tags,
+        status: w.status === 'active' ? 'approved' : 'pending',
+        image_url: w.image,
+      });
     }
+
+    const response = await apiClient<any>('/catalogs', {
+      method: 'POST',
+      body,
+    });
+
+    const created = response.data || response;
+    return mapCatalogToWarung(created);
+  },
+
+  update: async (id: string, data: Partial<Warung> | FormData): Promise<Warung> => {
+    let body: any;
+
+    if (typeof FormData !== 'undefined' && data instanceof FormData) {
+      if (!data.has('category')) {
+        data.append('category', 'warung');
+      }
+      body = data;
+    } else {
+      const w = data as Partial<Warung>;
+      const payload: Record<string, any> = {
+        category: 'warung',
+      };
+
+      if (w.name !== undefined) payload.name = w.name;
+      if (w.description !== undefined) payload.description = w.description;
+      if (w.whatsapp !== undefined) payload.contact_phone = w.whatsapp;
+      if (w.address !== undefined) payload.location_note = w.address;
+      if (w.openingTime !== undefined || w.closingTime !== undefined) {
+        payload.operating_hours = formatOperatingHours(w.openingTime, w.closingTime);
+      }
+      if (w.tags !== undefined) {
+        payload.tags = Array.isArray(w.tags) ? w.tags.join(', ') : w.tags;
+      }
+      if (w.status !== undefined) {
+        payload.status = w.status === 'active' ? 'approved' : 'pending';
+      }
+      if (w.image !== undefined) {
+        payload.image_url = w.image;
+      }
+
+      body = JSON.stringify(payload);
+    }
+
+    const response = await apiClient<any>(`/catalogs/${id}`, {
+      method: 'PUT',
+      body,
+    });
+
+    const updated = response.data || response;
+    return mapCatalogToWarung(updated);
   },
 
   delete: async (id: string): Promise<void> => {
-    try {
-      await apiClient(`/warungs/${id}`, { method: 'DELETE' });
-    } catch {
-      // ignore
-    }
-    const items = getLocalWarungs();
-    saveLocalWarungs(items.filter((w) => String(w.id) !== String(id)));
+    await apiClient(`/catalogs/${id}`, { method: 'DELETE' });
   },
 
   toggleStatus: async (id: string): Promise<Warung> => {
-    const items = getLocalWarungs();
-    const index = items.findIndex((w) => String(w.id) === String(id));
-    if (index !== -1) {
-      items[index].status = items[index].status === 'active' ? 'inactive' : 'active';
-      saveLocalWarungs(items);
-      return items[index];
-    }
-    throw new Error('Warung not found');
+    const current = await warungService.getById(id);
+    if (!current) throw new Error('Warung tidak ditemukan');
+
+    const nextStatus = current.status === 'active' ? 'pending' : 'approved';
+
+    const response = await apiClient<any>(`/catalogs/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        status: nextStatus,
+      }),
+    });
+
+    const updated = response.data || response;
+    return mapCatalogToWarung(updated);
   },
 };
 
+// Backwards-compatible aliases
 export const getWarungs = warungService.getAll;
 export const getWarungById = warungService.getById;
 export const createWarung = warungService.create;

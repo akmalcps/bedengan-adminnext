@@ -1,146 +1,165 @@
 import { apiClient } from './apiClient';
-import { Rental } from '@/src/types/rental';
+import { Rental, RentalItemSub } from '@/src/types/rental';
 import { CreateRentalPayload, UpdateRentalPayload } from '@/src/types/rental-api';
-import { initialRental } from '@/src/data/mock/rentalMock';
+import { ensureArray, formatOperatingHours, parseOperatingHours } from '@/src/utils/format';
 
-const STORAGE_KEY = 'bedengan_xplore_admin_rentals';
+/**
+ * Adapter untuk mengubah format database/backend catalog menjadi interface Rental frontend
+ */
+export const mapCatalogToRental = (item: any): Rental => {
+  const { openingTime, closingTime } = parseOperatingHours(item.operating_hours);
+  const statusStr = String(item.status || '').toLowerCase();
+  const isActive = statusStr === 'approved' || statusStr === 'active';
+  const tagsList = ensureArray(item.tags);
 
-const getLocalRentals = (): Rental[] => {
-  if (typeof window === 'undefined') return initialRental as unknown as Rental[];
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (!stored) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(initialRental));
-    return initialRental as unknown as Rental[];
+  // Inventaris item: jika ada di item.items gunakan itu, jika tidak buat dari tags
+  let items: RentalItemSub[] = [];
+  if (Array.isArray(item.items) && item.items.length > 0) {
+    items = item.items;
+  } else if (tagsList.length > 0) {
+    items = tagsList.map((tag, idx) => ({
+      id: `${item.id}-${idx}`,
+      name: tag,
+      price: item.price_text || '50000',
+      unit: 'hari',
+      availability: 'tersedia',
+    }));
   }
-  try {
-    return JSON.parse(stored);
-  } catch {
-    return initialRental as unknown as Rental[];
-  }
-};
 
-const saveLocalRentals = (rentals: Rental[]): void => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(rentals));
-  }
+  return {
+    id: String(item.id),
+    name: item.name || '',
+    description: item.description || '',
+    whatsapp: item.contact_phone || item.whatsapp || '',
+    address: item.location_note || item.address || '',
+    image: item.image_url || item.image || 'https://images.unsplash.com/photo-1523987355523-c7b5b0dd90a7?w=800',
+    openingTime,
+    closingTime,
+    status: isActive ? 'active' : 'inactive',
+    updatedAt: item.updated_at || item.created_at || new Date().toISOString(),
+    items,
+  };
 };
 
 export const rentalService = {
   getAll: async (): Promise<Rental[]> => {
-    try {
-      const response = await apiClient<any>('/rentals');
-      const data = response.data || response;
-      if (Array.isArray(data)) {
-        return data;
-      }
-      return getLocalRentals();
-    } catch (error) {
-      console.warn('Gagal memuat data rental dari backend, menggunakan data lokal:', error);
-      return getLocalRentals();
+    const response = await apiClient<any>('/catalogs?category=rental');
+    const rawList = response.data || response;
+    if (Array.isArray(rawList)) {
+      return rawList.map(mapCatalogToRental);
     }
+    return [];
   },
 
   getById: async (id: string): Promise<Rental | null> => {
-    try {
-      const response = await apiClient<any>(`/rentals/${id}`);
-      return response.data || response || null;
-    } catch {
-      const local = getLocalRentals();
-      return local.find((r) => String(r.id) === String(id)) || null;
-    }
+    const response = await apiClient<any>(`/catalogs/${id}`);
+    const data = response.data || response;
+    if (!data) return null;
+    return mapCatalogToRental(data);
   },
 
-  create: async (payload: CreateRentalPayload): Promise<Rental> => {
-    try {
-      const response = await apiClient<any>('/rentals', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-      return response.data || response;
-    } catch (error) {
-      console.warn('Gagal simpan ke backend, menyimpan secara lokal:', error);
-      const local = getLocalRentals();
-      const newRental: Rental = {
-        name: payload.name,
-        description: payload.description,
-        whatsapp: payload.whatsapp,
-        address: payload.address,
-        openingTime: payload.openingTime,
-        closingTime: payload.closingTime,
-        id: Date.now().toString(),
-        status: payload.status || 'active',
-        image: payload.image || 'https://images.unsplash.com/photo-1523987355523-c7b5b0dd90a7?w=800',
-        updatedAt: new Date().toISOString(),
-        items: (payload.items || []).map((item, idx) => ({
-          ...item,
-          id: 'id' in item && typeof item.id === 'string' && item.id ? item.id : `${Date.now()}-${idx}`,
-        })),
-      };
-      saveLocalRentals([...local, newRental]);
-      return newRental;
-    }
-  },
+  create: async (payload: CreateRentalPayload | FormData): Promise<Rental> => {
+    let body: any;
 
-  update: async (id: string, payload: UpdateRentalPayload): Promise<Rental> => {
-    try {
-      const response = await apiClient<any>(`/rentals/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(payload),
-      });
-      return response.data || response;
-    } catch (error) {
-      console.warn('Gagal update di backend, mengupdate secara lokal:', error);
-      const local = getLocalRentals();
-      const index = local.findIndex((r) => String(r.id) === String(id));
-      if (index !== -1) {
-        const updatedItems = payload.items
-          ? payload.items.map((item, idx) => ({
-              ...item,
-              id: 'id' in item && typeof item.id === 'string' && item.id ? item.id : `${Date.now()}-${idx}`,
-            }))
-          : local[index].items;
-
-        local[index] = {
-          ...local[index],
-          ...payload,
-          items: updatedItems,
-          updatedAt: new Date().toISOString(),
-        };
-        saveLocalRentals(local);
-        return local[index];
+    if (typeof FormData !== 'undefined' && payload instanceof FormData) {
+      if (!payload.has('category')) {
+        payload.append('category', 'rental');
       }
-      throw new Error('Rental tidak ditemukan');
+      body = payload;
+    } else {
+      const p = payload as CreateRentalPayload;
+      const tagNames = (p.items || []).map((it) => it.name).filter(Boolean);
+      const priceText = p.items && p.items.length > 0 ? `Mulai ${p.items[0].price}` : 'Mulai Rp 50.000';
+
+      body = JSON.stringify({
+        category: 'rental',
+        name: p.name,
+        description: p.description,
+        contact_phone: p.whatsapp,
+        location_note: p.address,
+        operating_hours: formatOperatingHours(p.openingTime, p.closingTime),
+        tags: tagNames.join(', '),
+        price_text: priceText,
+        status: p.status === 'active' ? 'approved' : 'pending',
+        image_url: p.image,
+      });
     }
+
+    const response = await apiClient<any>('/catalogs', {
+      method: 'POST',
+      body,
+    });
+
+    const created = response.data || response;
+    return mapCatalogToRental(created);
+  },
+
+  update: async (id: string, payload: UpdateRentalPayload | FormData): Promise<Rental> => {
+    let body: any;
+
+    if (typeof FormData !== 'undefined' && payload instanceof FormData) {
+      if (!payload.has('category')) {
+        payload.append('category', 'rental');
+      }
+      body = payload;
+    } else {
+      const p = payload as UpdateRentalPayload;
+      const data: Record<string, any> = {
+        category: 'rental',
+      };
+
+      if (p.name !== undefined) data.name = p.name;
+      if (p.description !== undefined) data.description = p.description;
+      if (p.whatsapp !== undefined) data.contact_phone = p.whatsapp;
+      if (p.address !== undefined) data.location_note = p.address;
+      if (p.openingTime !== undefined || p.closingTime !== undefined) {
+        data.operating_hours = formatOperatingHours(p.openingTime, p.closingTime);
+      }
+      if (p.items !== undefined) {
+        const tagNames = p.items.map((it) => it.name).filter(Boolean);
+        data.tags = tagNames.join(', ');
+        if (p.items.length > 0) {
+          data.price_text = `Mulai ${p.items[0].price}`;
+        }
+      }
+      if (p.status !== undefined) {
+        data.status = p.status === 'active' ? 'approved' : 'pending';
+      }
+      if (p.image !== undefined) {
+        data.image_url = p.image;
+      }
+
+      body = JSON.stringify(data);
+    }
+
+    const response = await apiClient<any>(`/catalogs/${id}`, {
+      method: 'PUT',
+      body,
+    });
+
+    const updated = response.data || response;
+    return mapCatalogToRental(updated);
   },
 
   delete: async (id: string): Promise<void> => {
-    try {
-      await apiClient(`/rentals/${id}`, { method: 'DELETE' });
-    } catch (error) {
-      console.warn('Gagal hapus di backend, menghapus secara lokal:', error);
-    }
-    const local = getLocalRentals();
-    saveLocalRentals(local.filter((r) => String(r.id) !== String(id)));
+    await apiClient(`/catalogs/${id}`, { method: 'DELETE' });
   },
 
   toggleStatus: async (id: string): Promise<Rental> => {
-    const local = getLocalRentals();
-    const index = local.findIndex((r) => String(r.id) === String(id));
-    if (index === -1) throw new Error('Rental tidak ditemukan');
+    const current = await rentalService.getById(id);
+    if (!current) throw new Error('Rental tidak ditemukan');
 
-    const nextStatus = local[index].status === 'active' ? 'inactive' : 'active';
-    try {
-      const response = await apiClient<any>(`/rentals/${id}/status`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status: nextStatus }),
-      });
-      return response.data || response;
-    } catch {
-      local[index].status = nextStatus;
-      local[index].updatedAt = new Date().toISOString();
-      saveLocalRentals(local);
-      return local[index];
-    }
+    const nextStatus = current.status === 'active' ? 'pending' : 'approved';
+
+    const response = await apiClient<any>(`/catalogs/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        status: nextStatus,
+      }),
+    });
+
+    const updated = response.data || response;
+    return mapCatalogToRental(updated);
   },
 };
 

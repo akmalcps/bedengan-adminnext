@@ -122,7 +122,7 @@ export default function RentalDetail() {
               <div>
                 <p className="text-[11px] font-semibold text-[#8b9d91]">Jam Operasional</p>
                 <p className="text-xs font-bold text-[#1C2B20]">
-                  {rental.openingTime} - {rental.closingTime}
+                  {rental.openingTime} - {rental.closingTime} WIB
                 </p>
               </div>
             </div>
@@ -147,12 +147,12 @@ export default function RentalDetail() {
           {/* Items Section */}
           <div className="space-y-3">
             <h4 className="text-base font-bold text-[#1C2B20]">
-              Peralatan Tersedia ({rental.items?.length || 0})
+              Peralatan Tersedia ({Array.isArray(rental.items) ? rental.items.length : 0})
             </h4>
 
-            {(rental.items || []).length > 0 ? (
+            {Array.isArray(rental.items) && rental.items.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {rental.items?.map((item) => (
+                {rental.items.map((item) => (
                   <div
                     key={item.id}
                     className="p-3.5 rounded-xl border border-[#d4e0d7] hover:border-[#85BB45] transition flex flex-col justify-between gap-2"
@@ -205,12 +205,13 @@ export default function RentalDetail() {
               <div className="space-y-2 pt-2 border-t border-[#d4e0d7]/50">
                 <h5 className="text-xs font-bold text-[#1C2B20]">Daftar Alat</h5>
                 <div className="space-y-1.5 divide-y divide-dashed divide-[#d4e0d7]">
-                  {rental.items?.map((item) => (
-                    <div key={item.id} className="pt-1.5 flex justify-between text-xs">
-                      <span className="text-[#1C2B20]">{item.name}</span>
-                      <span className="font-bold text-[#3F6900]">{formatRupiah(item.price)}</span>
-                    </div>
-                  ))}
+                  {Array.isArray(rental.items) &&
+                    rental.items.map((item) => (
+                      <div key={item.id} className="pt-1.5 flex justify-between text-xs">
+                        <span className="text-[#1C2B20]">{item.name}</span>
+                        <span className="font-bold text-[#3F6900]">{formatRupiah(item.price)}</span>
+                      </div>
+                    ))}
                 </div>
               </div>
 

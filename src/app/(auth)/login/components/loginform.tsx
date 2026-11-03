@@ -12,16 +12,46 @@ export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+
+  const validate = (): boolean => {
+    const errs: Record<string, string> = {};
+    const emailTrim = email.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailTrim) {
+      errs.email = 'Email petugas wajib diisi!';
+    } else if (!emailRegex.test(emailTrim)) {
+      errs.email = 'Format email tidak valid! Contoh: admin@bedengan.com';
+    }
+
+    if (!password) {
+      errs.password = 'Kata sandi wajib diisi!';
+    } else if (password.length < 6) {
+      errs.password = 'Kata sandi minimal 6 karakter!';
+    }
+
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!validate()) {
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const { token, user } = await authService.login({ email, password });
+      const { token, user } = await authService.login({
+        email: email.trim(),
+        password,
+      });
       setAuthSession(token, user);
       router.push('/admin/dashboard');
     } catch (err: any) {
@@ -50,12 +80,21 @@ export default function LoginForm() {
             id="email"
             type="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="admin@bedenganxplore.id"
-            required
-            className="w-full h-[46px] pl-[38px] pr-10 border border-gray-200 rounded-xl text-sm bg-white placeholder-gray-400 focus:border-[#85BB45] focus:ring-1 focus:ring-[#85BB45] outline-none transition-all"
+            onChange={(e) => {
+              setEmail(e.target.value);
+              if (errors.email) setErrors((prev) => ({ ...prev, email: '' }));
+            }}
+            placeholder="admin@bedengan.com"
+            className={`w-full h-[46px] pl-[38px] pr-10 border rounded-xl text-sm bg-white placeholder-gray-400 outline-none transition-all ${
+              errors.email
+                ? 'border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500'
+                : 'border-gray-200 focus:border-[#85BB45] focus:ring-1 focus:ring-[#85BB45]'
+            }`}
           />
         </div>
+        {errors.email && (
+          <p className="text-red-500 text-xs mt-1.5 font-medium">{errors.email}</p>
+        )}
       </div>
 
       {/* Password */}
@@ -69,10 +108,16 @@ export default function LoginForm() {
             id="password"
             type={showPassword ? 'text' : 'password'}
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              if (errors.password) setErrors((prev) => ({ ...prev, password: '' }));
+            }}
             placeholder="••••••••••••"
-            required
-            className="w-full h-[46px] pl-[38px] pr-10 border border-gray-200 rounded-xl text-sm bg-white placeholder-gray-400 focus:border-[#85BB45] focus:ring-1 focus:ring-[#85BB45] outline-none transition-all"
+            className={`w-full h-[46px] pl-[38px] pr-10 border rounded-xl text-sm bg-white placeholder-gray-400 outline-none transition-all ${
+              errors.password
+                ? 'border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500'
+                : 'border-gray-200 focus:border-[#85BB45] focus:ring-1 focus:ring-[#85BB45]'
+            }`}
           />
           <button
             type="button"
@@ -83,6 +128,9 @@ export default function LoginForm() {
             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
           </button>
         </div>
+        {errors.password && (
+          <p className="text-red-500 text-xs mt-1.5 font-medium">{errors.password}</p>
+        )}
       </div>
 
       {/* Checkbox & Lupa Password */}

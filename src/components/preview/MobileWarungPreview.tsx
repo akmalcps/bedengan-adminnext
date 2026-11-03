@@ -25,25 +25,26 @@ export default function MobileWarungPreview({ data }: { data?: WarungPreviewData
             className="mobile-card-img"
           />
           <div className="mobile-time-badge">
-            <Clock size={12} /> {data.openingTime} - {data.closingTime}
+            <Clock size={12} /> {data.openingTime || '08:00'} - {data.closingTime || '17:00'} WIB
           </div>
         </div>
 
         <div className="mobile-card-body">
-          <h3 className="mobile-card-title">{data.name}</h3>
+          <h3 className="mobile-card-title">{data.name || 'Nama Warung'}</h3>
 
           <div className="mobile-card-address">
-            <MapPin size={12} /> {data.address}
+            <MapPin size={12} /> {data.address || 'Kawasan Bedengan'}
           </div>
 
-          <p className="mobile-card-desc">{data.description}</p>
+          <p className="mobile-card-desc">{data.description || 'Deskripsi warung kuliner.'}</p>
 
           <div className="mobile-tag-list">
-            {data.tags?.map((tag, i) => (
-              <span key={i} className="mobile-tag">
-                {tag}
-              </span>
-            ))}
+            {Array.isArray(data.tags) &&
+              data.tags.map((tag, i) => (
+                <span key={i} className="mobile-tag">
+                  {tag}
+                </span>
+              ))}
           </div>
 
           <button className="mobile-btn-primary" style={{ marginTop: '1rem', width: '100%' }}>

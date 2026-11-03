@@ -51,8 +51,8 @@ export default function FotograferList() {
 
   const filteredFotografers = fotografers.filter((f) => {
     const matchSearch =
-      f.name.toLowerCase().includes(search.toLowerCase()) ||
-      f.instagramUsername.toLowerCase().includes(search.toLowerCase());
+      (f.name?.toLowerCase() ?? '').includes(search.toLowerCase()) ||
+      (f.instagramUsername?.toLowerCase() ?? '').includes(search.toLowerCase());
     const matchStatus = statusFilter === 'all' || f.status === statusFilter;
     return matchSearch && matchStatus;
   });

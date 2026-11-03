@@ -12,6 +12,8 @@ export default function KawasanEdit() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState<Kawasan | null>(null);
   const [facilityInput, setFacilityInput] = useState('');
 
@@ -39,42 +41,112 @@ export default function KawasanEdit() {
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => (prev ? { ...prev, [name]: value } : prev));
+    if (errors[name]) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    }
   };
 
   const handleAddFacility = () => {
     if (!formData) return;
     const trimmed = facilityInput.trim();
-    if (trimmed && !formData.facilities.includes(trimmed)) {
-      setFormData((prev) => (prev ? { ...prev, facilities: [...prev.facilities, trimmed] } : prev));
+    const currentFacilities = Array.isArray(formData.facilities) ? formData.facilities : [];
+    if (trimmed && !currentFacilities.includes(trimmed)) {
+      setFormData((prev) =>
+        prev ? { ...prev, facilities: [...currentFacilities, trimmed] } : prev
+      );
       setFacilityInput('');
     }
   };
 
   const handleRemoveFacility = (facilityToRemove: string) => {
     if (!formData) return;
+    const currentFacilities = Array.isArray(formData.facilities) ? formData.facilities : [];
     setFormData((prev) =>
-      prev ? { ...prev, facilities: prev.facilities.filter((f) => f !== facilityToRemove) } : prev
+      prev ? { ...prev, facilities: currentFacilities.filter((f) => f !== facilityToRemove) } : prev
     );
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        setErrors((prev) => ({
+          ...prev,
+          image: 'Format foto harus berupa JPG, PNG, atau WEBP.',
+        }));
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setErrors((prev) => ({
+          ...prev,
+          image: 'Ukuran foto maksimal adalah 5MB.',
+        }));
+        return;
+      }
+
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.image;
+        return next;
+      });
+      setImageFile(file);
       const objectUrl = URL.createObjectURL(file);
       setFormData((prev) => (prev ? { ...prev, image: objectUrl } : prev));
     }
   };
 
+  const validateForm = () => {
+    if (!formData) return false;
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.name?.trim()) {
+      newErrors.name = 'Nama area camping wajib diisi.';
+    }
+
+    if (!formData.description?.trim()) {
+      newErrors.description = 'Deskripsi wajib diisi.';
+    }
+
+    if (!formData.capacity?.trim()) {
+      newErrors.capacity = 'Kapasitas area wajib diisi.';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData) return;
+    if (!formData || !validateForm()) return;
+
     setIsSubmitting(true);
     try {
-      await kawasanService.update(id, formData);
+      if (imageFile) {
+        const payload = new FormData();
+        payload.append('name', formData.name.trim());
+        payload.append('description', formData.description.trim());
+        payload.append('capacity', formData.capacity.trim());
+        payload.append('facilities', JSON.stringify(formData.facilities || []));
+        payload.append('status', formData.status);
+        payload.append('image', imageFile);
+        await kawasanService.update(id, payload as any);
+      } else {
+        await kawasanService.update(id, {
+          ...formData,
+          name: formData.name.trim(),
+          description: formData.description.trim(),
+          capacity: formData.capacity.trim(),
+        });
+      }
       router.push(`/admin/kawasan/${id}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating kawasan:', error);
-      alert('Gagal mengupdate kawasan.');
+      alert(error?.message || 'Gagal mengupdate kawasan.');
     } finally {
       setIsSubmitting(false);
     }
@@ -108,7 +180,7 @@ export default function KawasanEdit() {
       </div>
 
       <div className="bg-white rounded-2xl border border-[#d4e0d7] p-6 sm:p-8 shadow-xs">
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6" noValidate>
           <div className="space-y-4">
             <h3 className="text-base font-bold text-[#1C2B20] pb-2 border-b border-[#d4e0d7]">
               Informasi Area
@@ -134,9 +206,13 @@ export default function KawasanEdit() {
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                required
-                className="w-full px-4 py-2.5 rounded-xl border border-[#d4e0d7] text-sm text-[#1C2B20] focus:outline-none focus:border-[#85BB45]"
+                className={`w-full px-4 py-2.5 rounded-xl border text-sm text-[#1C2B20] focus:outline-none transition ${
+                  errors.name
+                    ? 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-100'
+                    : 'border-[#d4e0d7] focus:border-[#85BB45]'
+                }`}
               />
+              {errors.name && <p className="text-xs text-red-500 font-medium">{errors.name}</p>}
             </div>
 
             <div className="space-y-1.5">
@@ -145,10 +221,16 @@ export default function KawasanEdit() {
                 name="description"
                 value={formData.description}
                 onChange={handleChange}
-                required
                 rows={3}
-                className="w-full px-4 py-2.5 rounded-xl border border-[#d4e0d7] text-sm text-[#1C2B20] focus:outline-none focus:border-[#85BB45] resize-y"
+                className={`w-full px-4 py-2.5 rounded-xl border text-sm text-[#1C2B20] focus:outline-none resize-y transition ${
+                  errors.description
+                    ? 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-100'
+                    : 'border-[#d4e0d7] focus:border-[#85BB45]'
+                }`}
               />
+              {errors.description && (
+                <p className="text-xs text-red-500 font-medium">{errors.description}</p>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -158,10 +240,16 @@ export default function KawasanEdit() {
                 name="capacity"
                 value={formData.capacity}
                 onChange={handleChange}
-                required
                 placeholder="Contoh: 15-20 Tenda"
-                className="w-full px-4 py-2.5 rounded-xl border border-[#d4e0d7] text-sm text-[#1C2B20] focus:outline-none focus:border-[#85BB45]"
+                className={`w-full px-4 py-2.5 rounded-xl border text-sm text-[#1C2B20] focus:outline-none transition ${
+                  errors.capacity
+                    ? 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-100'
+                    : 'border-[#d4e0d7] focus:border-[#85BB45]'
+                }`}
               />
+              {errors.capacity && (
+                <p className="text-xs text-red-500 font-medium">{errors.capacity}</p>
+              )}
             </div>
           </div>
 
@@ -194,7 +282,7 @@ export default function KawasanEdit() {
             </div>
 
             <div className="flex flex-wrap gap-2 pt-1">
-              {formData.facilities?.map((f) => (
+              {(Array.isArray(formData.facilities) ? formData.facilities : []).map((f) => (
                 <span
                   key={f}
                   className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#85BB45]/15 text-[#3F6900] text-xs font-semibold"
@@ -223,7 +311,7 @@ export default function KawasanEdit() {
                 <span>Ganti Foto</span>
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp"
                   onChange={handleImageChange}
                   className="hidden"
                 />
@@ -236,6 +324,7 @@ export default function KawasanEdit() {
                 />
               )}
             </div>
+            {errors.image && <p className="text-xs text-red-500 font-medium">{errors.image}</p>}
           </div>
 
           <div className="pt-4 border-t border-[#d4e0d7] flex items-center justify-end gap-3">
