@@ -158,11 +158,10 @@ export default function WarungList() {
                     </td>
                     <td className="py-3.5 px-4 sm:px-6">
                       <span
-                        className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
-                          warung.status === 'active'
+                        className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${warung.status === 'active'
                             ? 'bg-[#85BB45]/15 text-[#3F6900]'
                             : 'bg-slate-200 text-slate-600'
-                        }`}
+                          }`}
                       >
                         {warung.status === 'active' ? 'Aktif' : 'Nonaktif'}
                       </span>
@@ -185,11 +184,10 @@ export default function WarungList() {
                         </button>
                         <button
                           onClick={() => handleToggleStatus(warung.id)}
-                          className={`p-1.5 rounded-lg transition ${
-                            warung.status === 'active'
+                          className={`p-1.5 rounded-lg transition ${warung.status === 'active'
                               ? 'text-amber-500 hover:bg-amber-50'
                               : 'text-[#85BB45] hover:bg-[#EEF5EA]'
-                          }`}
+                            }`}
                           title={warung.status === 'active' ? 'Nonaktifkan' : 'Aktifkan'}
                         >
                           {warung.status === 'active' ? <PowerOff size={18} /> : <Power size={18} />}
