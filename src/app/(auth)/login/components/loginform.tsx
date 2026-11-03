@@ -84,12 +84,11 @@ export default function LoginForm() {
               setEmail(e.target.value);
               if (errors.email) setErrors((prev) => ({ ...prev, email: '' }));
             }}
-            placeholder="admin@bedengan.com"
-            className={`w-full h-[46px] pl-[38px] pr-10 border rounded-xl text-sm bg-white placeholder-gray-400 outline-none transition-all ${
-              errors.email
-                ? 'border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500'
-                : 'border-gray-200 focus:border-[#85BB45] focus:ring-1 focus:ring-[#85BB45]'
-            }`}
+            placeholder=""
+            className={`w-full h-[46px] pl-[38px] pr-10 border rounded-xl text-sm bg-white placeholder-gray-400 outline-none transition-all ${errors.email
+              ? 'border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500'
+              : 'border-gray-200 focus:border-[#85BB45] focus:ring-1 focus:ring-[#85BB45]'
+              }`}
           />
         </div>
         {errors.email && (
@@ -112,12 +111,11 @@ export default function LoginForm() {
               setPassword(e.target.value);
               if (errors.password) setErrors((prev) => ({ ...prev, password: '' }));
             }}
-            placeholder="••••••••••••"
-            className={`w-full h-[46px] pl-[38px] pr-10 border rounded-xl text-sm bg-white placeholder-gray-400 outline-none transition-all ${
-              errors.password
-                ? 'border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500'
-                : 'border-gray-200 focus:border-[#85BB45] focus:ring-1 focus:ring-[#85BB45]'
-            }`}
+            placeholder=""
+            className={`w-full h-[46px] pl-[38px] pr-10 border rounded-xl text-sm bg-white placeholder-gray-400 outline-none transition-all ${errors.password
+              ? 'border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500'
+              : 'border-gray-200 focus:border-[#85BB45] focus:ring-1 focus:ring-[#85BB45]'
+              }`}
           />
           <button
             type="button"
