@@ -5,8 +5,6 @@ import { useRouter, useParams } from 'next/navigation';
 import { Edit, ArrowLeft, Power, PowerOff, Loader2, Tent } from 'lucide-react';
 import { kawasanService } from '@/src/services/kawasanService';
 import { Kawasan } from '@/src/types/kawasan';
-import MobilePreviewFrame from '@/src/components/preview/MobilePreviewFrame';
-import MobileAreaPreview from '@/src/components/preview/MobileAreaPreview';
 
 export default function KawasanDetail() {
   const params = useParams();
@@ -56,7 +54,7 @@ export default function KawasanDetail() {
   if (!kawasan) return null;
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <button
@@ -71,11 +69,10 @@ export default function KawasanDetail() {
         <div className="flex items-center gap-2">
           <button
             onClick={handleToggleStatus}
-            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold border transition ${
-              kawasan.status === 'active'
+            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold border transition ${kawasan.status === 'active'
                 ? 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
                 : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-            }`}
+              }`}
           >
             {kawasan.status === 'active' ? <PowerOff size={16} /> : <Power size={16} />}
             <span>{kawasan.status === 'active' ? 'Nonaktifkan' : 'Aktifkan'}</span>
@@ -89,65 +86,50 @@ export default function KawasanDetail() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Detail Information */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-[#d4e0d7] p-6 sm:p-8 shadow-xs space-y-6">
-          <div className="flex flex-col sm:flex-row gap-5 items-start">
-            <img
-              src={kawasan.image}
-              alt={kawasan.name}
-              className="w-32 h-28 rounded-2xl object-cover border border-[#d4e0d7] shrink-0"
-            />
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h3 className="text-xl font-bold text-[#1C2B20]">{kawasan.name}</h3>
-                <span
-                  className={`px-3 py-0.5 rounded-full text-xs font-semibold ${
-                    kawasan.status === 'active'
-                      ? 'bg-[#85BB45]/15 text-[#3F6900]'
-                      : 'bg-slate-200 text-slate-600'
+      <div className="bg-white rounded-2xl border border-[#d4e0d7] p-6 sm:p-8 shadow-xs space-y-6">
+        <div className="flex flex-col sm:flex-row gap-5 items-start">
+          <img
+            src={kawasan.image}
+            alt={kawasan.name}
+            className="w-32 h-28 rounded-2xl object-cover border border-[#d4e0d7] shrink-0"
+          />
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h3 className="text-xl font-bold text-[#1C2B20]">{kawasan.name}</h3>
+              <span
+                className={`px-3 py-0.5 rounded-full text-xs font-semibold ${kawasan.status === 'active'
+                    ? 'bg-[#85BB45]/15 text-[#3F6900]'
+                    : 'bg-slate-200 text-slate-600'
                   }`}
-                >
-                  {kawasan.status === 'active' ? 'Aktif' : 'Nonaktif'}
-                </span>
-              </div>
-              <p className="text-sm text-[#4a5c50] leading-relaxed">{kawasan.description}</p>
+              >
+                {kawasan.status === 'active' ? 'Aktif' : 'Nonaktif'}
+              </span>
             </div>
-          </div>
-
-          <div className="p-4 rounded-xl bg-[#EEF5EA]/50 border border-[#d4e0d7] flex items-center gap-3">
-            <Tent size={20} className="text-[#85BB45]" />
-            <div>
-              <p className="text-[11px] font-semibold text-[#8b9d91]">Kapasitas Area</p>
-              <p className="text-sm font-bold text-[#1C2B20]">{kawasan.capacity}</p>
-            </div>
-          </div>
-
-          <div className="space-y-2 pt-2">
-            <h4 className="text-sm font-bold text-[#1C2B20]">Fasilitas Terdekat</h4>
-            <div className="flex flex-wrap gap-2">
-              {Array.isArray(kawasan.facilities) &&
-                kawasan.facilities.map((f) => (
-                  <span
-                    key={f}
-                    className="px-3.5 py-1.5 rounded-full bg-[#85BB45]/15 text-[#3F6900] text-xs font-semibold"
-                  >
-                    {f}
-                  </span>
-                ))}
-            </div>
+            <p className="text-sm text-[#4a5c50] leading-relaxed">{kawasan.description}</p>
           </div>
         </div>
 
-        {/* Right Column: Mobile Preview */}
-        <div className="flex flex-col items-center">
-          <div className="mb-3 text-center">
-            <h3 className="text-sm font-bold text-[#1C2B20]">Preview Mobile</h3>
-            <p className="text-xs text-[#8b9d91]">Tampilan area di aplikasi publik</p>
+        <div className="p-4 rounded-xl bg-[#EEF5EA]/50 border border-[#d4e0d7] flex items-center gap-3">
+          <Tent size={20} className="text-[#85BB45]" />
+          <div>
+            <p className="text-[11px] font-semibold text-[#8b9d91]">Kapasitas Area</p>
+            <p className="text-sm font-bold text-[#1C2B20]">{kawasan.capacity}</p>
           </div>
-          <MobilePreviewFrame title={kawasan.name}>
-            <MobileAreaPreview data={kawasan} />
-          </MobilePreviewFrame>
+        </div>
+
+        <div className="space-y-2 pt-2">
+          <h4 className="text-sm font-bold text-[#1C2B20]">Fasilitas Terdekat</h4>
+          <div className="flex flex-wrap gap-2">
+            {Array.isArray(kawasan.facilities) &&
+              kawasan.facilities.map((f) => (
+                <span
+                  key={f}
+                  className="px-3.5 py-1.5 rounded-full bg-[#85BB45]/15 text-[#3F6900] text-xs font-semibold"
+                >
+                  {f}
+                </span>
+              ))}
+          </div>
         </div>
       </div>
     </div>

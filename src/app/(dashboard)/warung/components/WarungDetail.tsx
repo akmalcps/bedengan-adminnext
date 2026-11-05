@@ -5,8 +5,6 @@ import { useRouter, useParams } from 'next/navigation';
 import { Edit, ArrowLeft, Trash2, Loader2, Phone, Clock, MapPin } from 'lucide-react';
 import { warungService } from '@/src/services/warungService';
 import { Warung } from '@/src/types/warung';
-import MobilePreviewFrame from '@/src/components/preview/MobilePreviewFrame';
-import MobileWarungPreview from '@/src/components/preview/MobileWarungPreview';
 
 export default function WarungDetail() {
   const params = useParams();
@@ -59,7 +57,7 @@ export default function WarungDetail() {
   if (!warung) return null;
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <button
@@ -87,9 +85,8 @@ export default function WarungDetail() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Detail Info */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-[#d4e0d7] p-6 sm:p-8 shadow-xs space-y-6">
+      {/* Main Detail Info */}
+      <div className="bg-white rounded-2xl border border-[#d4e0d7] p-6 sm:p-8 shadow-xs space-y-6">
           <div className="flex flex-col sm:flex-row gap-5 items-start">
             <img
               src={warung.image}
@@ -158,18 +155,6 @@ export default function WarungDetail() {
               )}
             </div>
           </div>
-        </div>
-
-        {/* Right Column: Mobile Preview */}
-        <div className="flex flex-col items-center">
-          <div className="mb-3 text-center">
-            <h3 className="text-sm font-bold text-[#1C2B20]">Preview Mobile</h3>
-            <p className="text-xs text-[#8b9d91]">Tampilan warung di aplikasi publik</p>
-          </div>
-          <MobilePreviewFrame title={warung.name}>
-            <MobileWarungPreview data={warung} />
-          </MobilePreviewFrame>
-        </div>
       </div>
     </div>
   );

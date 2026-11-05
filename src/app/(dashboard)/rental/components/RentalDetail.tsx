@@ -5,7 +5,6 @@ import { useRouter, useParams } from 'next/navigation';
 import { Edit, ArrowLeft, Trash2, Loader2, Phone, Clock, MapPin } from 'lucide-react';
 import { rentalService } from '@/src/services/rentalService';
 import { Rental } from '@/src/types/rental';
-import MobilePreviewFrame from '@/src/components/preview/MobilePreviewFrame';
 import { formatRupiah } from '@/src/utils/format';
 
 export default function RentalDetail() {
@@ -58,7 +57,7 @@ export default function RentalDetail() {
   if (!rental) return null;
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -87,10 +86,8 @@ export default function RentalDetail() {
         </div>
       </div>
 
-      {/* Main Grid: Detail + Mobile Preview */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Cols: Detail Card */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-[#d4e0d7] p-6 sm:p-8 shadow-sm space-y-6">
+      {/* Main Detail Card */}
+      <div className="bg-white rounded-2xl border border-[#d4e0d7] p-6 sm:p-8 shadow-sm space-y-6">
           {/* Brand header */}
           <div className="flex flex-col sm:flex-row gap-5 items-start">
             <img
@@ -181,47 +178,6 @@ export default function RentalDetail() {
             )}
           </div>
         </div>
-
-        {/* Right 1 Col: Mobile Preview */}
-        <div className="flex flex-col items-center">
-          <div className="mb-3 text-center">
-            <h3 className="text-sm font-bold text-[#1C2B20]">Preview Mobile</h3>
-            <p className="text-xs text-[#8b9d91]">Tampilan pada aplikasi pengguna</p>
-          </div>
-          <MobilePreviewFrame title="Detail Rental">
-            <div className="p-4 space-y-4">
-              <img
-                src={rental.image || 'https://images.unsplash.com/photo-1523987355523-c7b5b0dd90a7?w=400'}
-                alt={rental.name}
-                className="w-full h-36 rounded-xl object-cover"
-              />
-              <div>
-                <h4 className="font-bold text-sm text-[#1C2B20]">{rental.name}</h4>
-                <p className="text-xs text-[#4a5c50] mt-1 leading-snug line-clamp-3">
-                  {rental.description}
-                </p>
-              </div>
-
-              <div className="space-y-2 pt-2 border-t border-[#d4e0d7]/50">
-                <h5 className="text-xs font-bold text-[#1C2B20]">Daftar Alat</h5>
-                <div className="space-y-1.5 divide-y divide-dashed divide-[#d4e0d7]">
-                  {Array.isArray(rental.items) &&
-                    rental.items.map((item) => (
-                      <div key={item.id} className="pt-1.5 flex justify-between text-xs">
-                        <span className="text-[#1C2B20]">{item.name}</span>
-                        <span className="font-bold text-[#3F6900]">{formatRupiah(item.price)}</span>
-                      </div>
-                    ))}
-                </div>
-              </div>
-
-              <button className="w-full py-2.5 rounded-xl bg-[#85BB45] text-white text-xs font-bold text-center mt-3 shadow-sm">
-                Hubungi via WhatsApp
-              </button>
-            </div>
-          </MobilePreviewFrame>
-        </div>
-      </div>
     </div>
   );
 }
