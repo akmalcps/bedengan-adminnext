@@ -1,39 +1,33 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Search, Filter, Edit, Eye, Trash2, Power, PowerOff, Loader2 } from 'lucide-react';
+import useSWR from 'swr';
+import { Plus, Search, Filter, Edit, Eye, Trash2, Power, PowerOff, Loader2, AlertCircle } from 'lucide-react';
 import { warungService } from '@/src/services/warungService';
 import { Warung } from '@/src/types/warung';
 
 export default function WarungList() {
-  const [warungs, setWarungs] = useState<Warung[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const router = useRouter();
 
-  const fetchWarungs = async () => {
-    try {
-      setLoading(true);
-      const data = await warungService.getAll();
-      setWarungs(data);
-    } catch (error) {
-      console.error('Error fetching warungs:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchWarungs();
-  }, []);
+  // SWR Hook menggantikan useEffect & manual fetch
+  const {
+    data: warungs = [],
+    error,
+    isLoading,
+    mutate,
+  } = useSWR<Warung[]>('/catalogs?category=warung', () => warungService.getAll(), {
+    revalidateOnFocus: true,
+    dedupingInterval: 5000,
+  });
 
   const handleDelete = async (id: string, name: string) => {
     if (window.confirm(`Apakah Anda yakin ingin menghapus Warung ${name}?`)) {
       try {
         await warungService.delete(id);
-        await fetchWarungs();
+        await mutate(); // Revalidasi cache SWR
       } catch (error) {
         console.error('Error deleting warung:', error);
       }
@@ -43,7 +37,7 @@ export default function WarungList() {
   const handleToggleStatus = async (id: string) => {
     try {
       await warungService.toggleStatus(id);
-      await fetchWarungs();
+      await mutate(); // Revalidasi cache SWR
     } catch (error) {
       console.error('Error toggling status:', error);
     }
@@ -106,10 +100,21 @@ export default function WarungList() {
 
       {/* Table Card */}
       <div className="bg-white rounded-2xl border border-[#d4e0d7] shadow-xs overflow-hidden">
-        {loading ? (
+        {isLoading ? (
           <div className="p-12 flex flex-col items-center justify-center gap-3 text-[#4a5c50]">
             <Loader2 className="animate-spin text-[#85BB45]" size={32} />
             <p className="text-sm font-medium">Memuat data warung...</p>
+          </div>
+        ) : error ? (
+          <div className="p-12 flex flex-col items-center justify-center gap-3 text-red-600">
+            <AlertCircle size={32} />
+            <p className="text-sm font-medium">Gagal memuat data: {error.message || 'Terjadi kesalahan'}</p>
+            <button
+              onClick={() => mutate()}
+              className="mt-2 px-4 py-2 bg-[#85BB45] text-white rounded-lg text-xs font-semibold"
+            >
+              Coba Lagi
+            </button>
           </div>
         ) : filteredWarungs.length === 0 ? (
           <div className="p-12 text-center text-[#8b9d91] text-sm">

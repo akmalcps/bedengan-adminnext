@@ -61,3 +61,10 @@ export async function apiClient<T = any>(
     throw new ApiError(error?.message || 'Gagal terhubung ke server backend.', 0);
   }
 }
+
+/**
+ * Global fetcher untuk SWR yang membungkus apiClient.
+ * Menggunakan kredensial Bearer Token dan base URL secara otomatis.
+ */
+export const swrFetcher = <T = any>(endpoint: string): Promise<T> => apiClient<T>(endpoint);
+

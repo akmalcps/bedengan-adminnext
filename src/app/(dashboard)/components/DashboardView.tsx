@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import useSWR from 'swr';
 import {
   UtensilsCrossed,
   Tent,
@@ -11,6 +12,7 @@ import {
   Plus,
   ChevronRight,
   Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import {
   dashboardService,
@@ -19,41 +21,34 @@ import {
 } from '@/src/services/dashboardService';
 import { Application } from '@/src/types/application';
 
+interface DashboardCombinedData {
+  stats: DashboardStats;
+  pendingApps: Application[];
+  activities: ActivityItem[];
+}
+
+const fetchDashboardCombined = async (): Promise<DashboardCombinedData> => {
+  const [stats, pendingApps, activities] = await Promise.all([
+    dashboardService.getStats(),
+    dashboardService.getPendingApplications(),
+    dashboardService.getRecentActivities(),
+  ]);
+  return { stats, pendingApps, activities };
+};
+
 export default function DashboardView() {
-  const [stats, setStats] = useState<DashboardStats>({
-    totalWarung: 0,
-    totalRental: 0,
-    totalFotografer: 0,
-    pendingPendaftaran: 0,
-  });
-  const [pendingApps, setPendingApps] = useState<Application[]>([]);
-  const [activities, setActivities] = useState<ActivityItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const [statsData, appsData, activitiesData] = await Promise.all([
-          dashboardService.getStats(),
-          dashboardService.getPendingApplications(),
-          dashboardService.getRecentActivities(),
-        ]);
+  const { data, error, isLoading, mutate } = useSWR<DashboardCombinedData>(
+    '/home/dashboard',
+    fetchDashboardCombined,
+    {
+      revalidateOnFocus: true,
+      dedupingInterval: 5000,
+    }
+  );
 
-        setStats(statsData);
-        setPendingApps(appsData);
-        setActivities(activitiesData);
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDashboardData();
-  }, []);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="p-12 flex flex-col items-center justify-center gap-3 text-[#4a5c50]">
         <Loader2 className="animate-spin text-[#85BB45]" size={32} />
@@ -61,6 +56,30 @@ export default function DashboardView() {
       </div>
     );
   }
+
+  if (error) {
+    return (
+      <div className="p-12 flex flex-col items-center justify-center gap-3 text-red-600">
+        <AlertCircle size={32} />
+        <p className="text-sm font-medium">Gagal memuat data dashboard: {error.message || 'Terjadi kesalahan'}</p>
+        <button
+          onClick={() => mutate()}
+          className="mt-2 px-4 py-2 bg-[#85BB45] text-white rounded-lg text-xs font-semibold"
+        >
+          Coba Lagi
+        </button>
+      </div>
+    );
+  }
+
+  const stats = data?.stats || {
+    totalWarung: 0,
+    totalRental: 0,
+    totalFotografer: 0,
+    pendingPendaftaran: 0,
+  };
+  const pendingApps = data?.pendingApps || [];
+  const activities = data?.activities || [];
 
   const statCards = [
     {
