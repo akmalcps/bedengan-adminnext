@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Filter, Eye, Edit, Power, PowerOff, Loader2 } from 'lucide-react';
+import { Plus, Search, Filter, Eye, Edit, Trash2, Power, PowerOff, Loader2 } from 'lucide-react';
 import { kawasanService } from '@/src/services/kawasanService';
 import { Kawasan } from '@/src/types/kawasan';
+import { getImageUrl } from '@/src/utils/format';
 
 export default function KawasanList() {
   const [kawasans, setKawasans] = useState<Kawasan[]>([]);
@@ -29,6 +30,18 @@ export default function KawasanList() {
     fetchKawasans();
   }, []);
 
+  const handleDelete = async (id: string, name: string) => {
+    if (window.confirm(`Apakah Anda yakin ingin menghapus area ${name}?`)) {
+      try {
+        await kawasanService.delete(id);
+        await fetchKawasans();
+      } catch (error: any) {
+        console.error('Error deleting kawasan:', error);
+        alert(error?.message || 'Gagal menghapus area camping.');
+      }
+    }
+  };
+
   const handleToggleStatus = async (id: string) => {
     try {
       await kawasanService.toggleStatus(id);
@@ -47,11 +60,20 @@ export default function KawasanList() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-xl sm:text-2xl font-bold text-[#1C2B20]">Kawasan Bedengan</h2>
-        <p className="text-sm text-[#4a5c50] mt-0.5">
-          Kelola master data 13 area camping, kapasitas tenda, dan fasilitas terdekat.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold text-[#1C2B20]">Kawasan Bedengan</h2>
+          <p className="text-sm text-[#4a5c50] mt-0.5">
+            Kelola master data area camping ground, kapasitas tenda, dan fasilitas terdekat.
+          </p>
+        </div>
+        <button
+          onClick={() => router.push('/admin/kawasan/create')}
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#85BB45] hover:bg-[#74A934] active:scale-[0.98] text-white font-semibold rounded-full text-sm shadow-xs transition"
+        >
+          <Plus size={18} />
+          <span>Tambah Kawasan</span>
+        </button>
       </div>
 
       {/* Toolbar */}
@@ -110,7 +132,7 @@ export default function KawasanList() {
                   <tr key={kawasan.id} className="hover:bg-[#EEF5EA]/30 transition">
                     <td className="py-3.5 px-4 sm:px-6">
                       <img
-                        src={kawasan.image}
+                        src={getImageUrl(kawasan.image)}
                         alt={kawasan.name}
                         className="w-12 h-12 rounded-xl object-cover border border-[#d4e0d7]"
                       />
@@ -178,6 +200,13 @@ export default function KawasanList() {
                           title={kawasan.status === 'active' ? 'Nonaktifkan' : 'Aktifkan'}
                         >
                           {kawasan.status === 'active' ? <PowerOff size={18} /> : <Power size={18} />}
+                        </button>
+                        <button
+                          onClick={() => handleDelete(kawasan.id, kawasan.name)}
+                          className="p-1.5 text-[#4a5c50] hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                          title="Hapus Kawasan"
+                        >
+                          <Trash2 size={18} />
                         </button>
                       </div>
                     </td>

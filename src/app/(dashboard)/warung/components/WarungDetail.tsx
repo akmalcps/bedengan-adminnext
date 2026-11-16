@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { Edit, ArrowLeft, Trash2, Loader2, Phone, Clock, MapPin } from 'lucide-react';
 import { warungService } from '@/src/services/warungService';
 import { Warung } from '@/src/types/warung';
+import { getImageUrl } from '@/src/utils/format';
 
 export default function WarungDetail() {
   const params = useParams();
@@ -89,7 +90,7 @@ export default function WarungDetail() {
       <div className="bg-white rounded-2xl border border-[#d4e0d7] p-6 sm:p-8 shadow-xs space-y-6">
           <div className="flex flex-col sm:flex-row gap-5 items-start">
             <img
-              src={warung.image}
+              src={getImageUrl(warung.image)}
               alt={warung.name}
               className="w-28 h-28 rounded-2xl object-cover border border-[#d4e0d7] shrink-0"
             />

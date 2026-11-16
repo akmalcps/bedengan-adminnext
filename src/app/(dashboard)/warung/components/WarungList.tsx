@@ -6,6 +6,7 @@ import useSWR from 'swr';
 import { Plus, Search, Filter, Edit, Eye, Trash2, Power, PowerOff, Loader2, AlertCircle } from 'lucide-react';
 import { warungService } from '@/src/services/warungService';
 import { Warung } from '@/src/types/warung';
+import { getImageUrl } from '@/src/utils/format';
 
 export default function WarungList() {
   const [search, setSearch] = useState('');
@@ -138,7 +139,7 @@ export default function WarungList() {
                   <tr key={warung.id} className="hover:bg-[#EEF5EA]/30 transition">
                     <td className="py-3.5 px-4 sm:px-6">
                       <img
-                        src={warung.image}
+                        src={getImageUrl(warung.image)}
                         alt={warung.name}
                         className="w-12 h-12 rounded-xl object-cover border border-[#d4e0d7]"
                       />

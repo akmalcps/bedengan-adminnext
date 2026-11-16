@@ -99,3 +99,36 @@ export const parseOperatingHours = (raw?: string): { openingTime: string; closin
   return defaultTimes;
 };
 
+/**
+ * Normalisasi URL Gambar (Cloudinary / Local Backend / Fallback)
+ * - Jika kosong/null, kembalikan fallback placeholder
+ * - Jika sudah diawali 'http://' atau 'https://' (misal: Cloudinary), kembalikan langsung
+ * - Jika diawali '/' (path relatif backend seperti /uploads/...), gabungkan dengan origin backend
+ */
+export const getImageUrl = (
+  path?: string | null,
+  fallback = 'https://images.unsplash.com/photo-1537565266751-34feee3794b6?w=800'
+): string => {
+  if (!path || typeof path !== 'string' || !path.trim()) {
+    return fallback;
+  }
+
+  const trimmed = path.trim();
+
+  // Jika URL Cloudinary atau eksternal
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+
+  // Jika path lokal backend (/uploads/...)
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+  const backendOrigin = apiUrl.replace(/\/api\/?$/, '');
+
+  if (trimmed.startsWith('/')) {
+    return `${backendOrigin}${trimmed}`;
+  }
+
+  return `${backendOrigin}/${trimmed}`;
+};
+
+

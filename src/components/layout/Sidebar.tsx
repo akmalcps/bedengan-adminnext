@@ -9,6 +9,7 @@ import {
   Utensils,
   Camera,
   ClipboardList,
+  Trees,
   Settings,
   LogOut,
   X
@@ -38,6 +39,7 @@ export default function Sidebar({ isOpen, onClose, pendingCount = 0 }: SidebarPr
 
   const navItems = [
     { label: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard },
+    { label: 'Kawasan Camping', path: '/admin/kawasan', icon: Trees },
     { label: 'Rental Camping', path: '/admin/rental', icon: Tent },
     { label: 'Warung & Kuliner', path: '/admin/warung', icon: Utensils },
     { label: 'Fotografer', path: '/admin/fotografer', icon: Camera },

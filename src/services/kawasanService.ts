@@ -49,6 +49,40 @@ export const kawasanService = {
     return mapGroundToKawasan(data);
   },
 
+  create: async (data: Omit<Kawasan, 'id'> | FormData): Promise<Kawasan> => {
+    let body: any;
+
+    if (typeof FormData !== 'undefined' && data instanceof FormData) {
+      body = data;
+    } else {
+      const k = data as Partial<Kawasan>;
+      const payload: Record<string, any> = {};
+
+      if (k.number !== undefined) payload.code = k.number;
+      if (k.name !== undefined) payload.name = k.name;
+      if (k.capacity !== undefined) payload.capacity_badge = k.capacity;
+      if (k.description !== undefined) payload.description = k.description;
+      if (k.status !== undefined) payload.is_active = k.status === 'active' ? 1 : 0;
+      if (k.image !== undefined) payload.image_url = k.image;
+
+      if (k.facilities && Array.isArray(k.facilities)) {
+        if (k.facilities[0]) payload.nearby_facility = k.facilities[0];
+        if (k.facilities[1]) payload.terrain_feature = k.facilities[1];
+        if (k.facilities[2]) payload.toilet_distance = k.facilities[2];
+      }
+
+      body = JSON.stringify(payload);
+    }
+
+    const response = await apiClient<any>('/grounds', {
+      method: 'POST',
+      body,
+    });
+
+    const created = response.data || response;
+    return mapGroundToKawasan(created);
+  },
+
   update: async (id: string, data: Partial<Kawasan> | FormData): Promise<Kawasan> => {
     let body: any;
 
@@ -83,6 +117,13 @@ export const kawasanService = {
     return mapGroundToKawasan(updated);
   },
 
+  delete: async (id: string | number): Promise<boolean> => {
+    await apiClient<any>(`/grounds/${id}`, {
+      method: 'DELETE',
+    });
+    return true;
+  },
+
   toggleStatus: async (id: string): Promise<Kawasan> => {
     const current = await kawasanService.getById(id);
     if (!current) throw new Error('Kawasan tidak ditemukan');
@@ -104,5 +145,7 @@ export const kawasanService = {
 // Backwards-compatible aliases
 export const getKawasans = kawasanService.getAll;
 export const getKawasanById = kawasanService.getById;
+export const createKawasan = kawasanService.create;
 export const updateKawasan = kawasanService.update;
+export const deleteKawasan = kawasanService.delete;
 export const toggleKawasanStatus = kawasanService.toggleStatus;

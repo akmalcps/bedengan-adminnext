@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { Edit, ArrowLeft, Trash2, Loader2, Phone, Clock, MapPin } from 'lucide-react';
 import { rentalService } from '@/src/services/rentalService';
 import { Rental } from '@/src/types/rental';
-import { formatRupiah } from '@/src/utils/format';
+import { formatRupiah, getImageUrl } from '@/src/utils/format';
 
 export default function RentalDetail() {
   const params = useParams();
@@ -91,7 +91,7 @@ export default function RentalDetail() {
           {/* Brand header */}
           <div className="flex flex-col sm:flex-row gap-5 items-start">
             <img
-              src={rental.image || 'https://images.unsplash.com/photo-1523987355523-c7b5b0dd90a7?w=300'}
+              src={getImageUrl(rental.image, 'https://images.unsplash.com/photo-1523987355523-c7b5b0dd90a7?w=300')}
               alt={rental.name}
               className="w-28 h-28 rounded-2xl object-cover border border-[#d4e0d7] shrink-0"
             />

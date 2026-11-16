@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { Edit, ArrowLeft, Trash2, Loader2, Phone, Camera, MapPin } from 'lucide-react';
 import { fotograferService } from '@/src/services/fotograferService';
 import { Fotografer } from '@/src/types/fotografer';
-import { formatRupiah } from '@/src/utils/format';
+import { formatRupiah, getImageUrl } from '@/src/utils/format';
 
 export default function FotograferDetail() {
   const params = useParams();
@@ -89,7 +89,7 @@ export default function FotograferDetail() {
       <div className="bg-white rounded-2xl border border-[#d4e0d7] p-6 sm:p-8 shadow-xs space-y-6">
         <div className="flex flex-col sm:flex-row gap-5 items-start">
           <img
-            src={fotografer.profileImage}
+            src={getImageUrl(fotografer.profileImage, 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500')}
             alt={fotografer.name}
             className="w-24 h-24 rounded-2xl object-cover border border-[#d4e0d7] shrink-0"
           />

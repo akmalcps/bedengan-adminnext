@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Loader2, Upload, Plus, X } from 'lucide-react';
 import { kawasanService } from '@/src/services/kawasanService';
 import { Kawasan } from '@/src/types/kawasan';
+import { getImageUrl } from '@/src/utils/format';
 
 export default function KawasanEdit() {
   const params = useParams();
@@ -318,7 +319,7 @@ export default function KawasanEdit() {
               </label>
               {formData.image && (
                 <img
-                  src={formData.image}
+                  src={imageFile ? formData.image : getImageUrl(formData.image)}
                   alt="Preview"
                   className="w-24 h-16 rounded-xl object-cover border border-[#d4e0d7]"
                 />

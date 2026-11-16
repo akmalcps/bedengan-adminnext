@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Plus, Search, Filter, Edit, Eye, Trash2, Power, PowerOff, Loader2 } from 'lucide-react';
 import { rentalService } from '@/src/services/rentalService';
 import { Rental } from '@/src/types/rental';
+import { getImageUrl } from '@/src/utils/format';
 
 export default function RentalList() {
   const [rentals, setRentals] = useState<Rental[]>([]);
@@ -141,7 +142,7 @@ export default function RentalList() {
                   <tr key={rental.id} className="hover:bg-[#EEF5EA]/30 transition">
                     <td className="py-3.5 px-4 sm:px-6">
                       <img
-                        src={rental.image || 'https://images.unsplash.com/photo-1523987355523-c7b5b0dd90a7?w=100'}
+                        src={getImageUrl(rental.image, 'https://images.unsplash.com/photo-1523987355523-c7b5b0dd90a7?w=100')}
                         alt={rental.name}
                         className="w-12 h-12 rounded-xl object-cover border border-[#d4e0d7]"
                       />

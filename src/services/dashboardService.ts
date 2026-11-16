@@ -1,8 +1,10 @@
 import { apiClient } from './apiClient';
 import { applicationService, mapCatalogToApplication } from './applicationService';
+import { kawasanService } from './kawasanService';
 import { Application } from '@/src/types/application';
 
 export interface DashboardStats {
+  totalKawasan: number;
   totalWarung: number;
   totalRental: number;
   totalFotografer: number;
@@ -18,10 +20,14 @@ export interface ActivityItem {
 export const dashboardService = {
   getStats: async (): Promise<DashboardStats> => {
     try {
-      const response = await apiClient<any>('/home/dashboard');
-      const data = response.data || response;
+      const [response, kawasans] = await Promise.all([
+        apiClient<any>('/home/dashboard').catch(() => ({})),
+        kawasanService.getAll().catch(() => []),
+      ]);
+      const data = response?.data || response || {};
 
       return {
+        totalKawasan: data.total_grounds || data.total_kawasan || (Array.isArray(kawasans) ? kawasans.length : 0),
         totalWarung: data.total_warung || 0,
         totalRental: data.total_rental || 0,
         totalFotografer: data.total_photographer || 0,

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Plus, Search, Filter, Edit, Eye, Trash2, Power, PowerOff, Loader2 } from 'lucide-react';
 import { fotograferService } from '@/src/services/fotograferService';
 import { Fotografer } from '@/src/types/fotografer';
+import { getImageUrl } from '@/src/utils/format';
 
 export default function FotograferList() {
   const [fotografers, setFotografers] = useState<Fotografer[]>([]);
@@ -129,7 +130,7 @@ export default function FotograferList() {
                   <tr key={f.id} className="hover:bg-[#EEF5EA]/30 transition">
                     <td className="py-3.5 px-4 sm:px-6">
                       <img
-                        src={f.profileImage}
+                        src={getImageUrl(f.profileImage, 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500')}
                         alt={f.name}
                         className="w-12 h-12 rounded-xl object-cover border border-[#d4e0d7]"
                       />

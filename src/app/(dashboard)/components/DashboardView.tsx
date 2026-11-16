@@ -9,6 +9,7 @@ import {
   Tent,
   Camera,
   ClipboardList,
+  Trees,
   Plus,
   ChevronRight,
   Loader2,
@@ -73,6 +74,7 @@ export default function DashboardView() {
   }
 
   const stats = data?.stats || {
+    totalKawasan: 0,
     totalWarung: 0,
     totalRental: 0,
     totalFotografer: 0,
@@ -83,11 +85,18 @@ export default function DashboardView() {
 
   const statCards = [
     {
+      title: 'Total Kawasan Camping',
+      count: stats.totalKawasan,
+      icon: Trees,
+      bgColor: 'bg-[#85BB45]/15',
+      iconColor: 'text-[#3F6900]',
+    },
+    {
       title: 'Total Warung & Kuliner',
       count: stats.totalWarung,
       icon: UtensilsCrossed,
-      bgColor: 'bg-[#85BB45]/15',
-      iconColor: 'text-[#3F6900]',
+      bgColor: 'bg-emerald-500/10',
+      iconColor: 'text-emerald-700',
     },
     {
       title: 'Total Rental Camping',
@@ -123,7 +132,7 @@ export default function DashboardView() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-5">
         {statCards.map((item, index) => {
           const Icon = item.icon;
           return (
@@ -149,6 +158,12 @@ export default function DashboardView() {
       <div className="space-y-3">
         <h3 className="text-base font-bold text-[#1C2B20]">Aksi Cepat</h3>
         <div className="flex flex-wrap gap-2.5">
+          <button
+            onClick={() => router.push('/admin/kawasan/create')}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#85BB45] hover:bg-[#74A934] text-white text-xs font-semibold shadow-xs transition"
+          >
+            <Plus size={16} /> Tambah Kawasan
+          </button>
           <button
             onClick={() => router.push('/admin/warung/create')}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#85BB45] hover:bg-[#74A934] text-white text-xs font-semibold shadow-xs transition"

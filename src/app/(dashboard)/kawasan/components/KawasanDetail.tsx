@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Edit, ArrowLeft, Power, PowerOff, Loader2, Tent } from 'lucide-react';
+import { Edit, ArrowLeft, Power, PowerOff, Loader2, Tent, Trash2 } from 'lucide-react';
 import { kawasanService } from '@/src/services/kawasanService';
 import { Kawasan } from '@/src/types/kawasan';
+import { getImageUrl } from '@/src/utils/format';
 
 export default function KawasanDetail() {
   const params = useParams();
@@ -42,6 +43,19 @@ export default function KawasanDetail() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!kawasan) return;
+    if (window.confirm(`Apakah Anda yakin ingin menghapus area ${kawasan.name}?`)) {
+      try {
+        await kawasanService.delete(id);
+        router.push('/admin/kawasan');
+      } catch (error: any) {
+        console.error('Error deleting kawasan:', error);
+        alert(error?.message || 'Gagal menghapus kawasan.');
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-12 flex flex-col items-center justify-center gap-3 text-[#4a5c50]">
@@ -68,10 +82,17 @@ export default function KawasanDetail() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={handleDelete}
+            className="inline-flex items-center gap-1.5 px-4 py-2 border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 rounded-full text-xs font-semibold transition"
+          >
+            <Trash2 size={16} />
+            <span>Hapus</span>
+          </button>
+          <button
             onClick={handleToggleStatus}
             className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold border transition ${kawasan.status === 'active'
-                ? 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
-                : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+              ? 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
+              : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
               }`}
           >
             {kawasan.status === 'active' ? <PowerOff size={16} /> : <Power size={16} />}
@@ -89,7 +110,7 @@ export default function KawasanDetail() {
       <div className="bg-white rounded-2xl border border-[#d4e0d7] p-6 sm:p-8 shadow-xs space-y-6">
         <div className="flex flex-col sm:flex-row gap-5 items-start">
           <img
-            src={kawasan.image}
+            src={getImageUrl(kawasan.image)}
             alt={kawasan.name}
             className="w-32 h-28 rounded-2xl object-cover border border-[#d4e0d7] shrink-0"
           />
@@ -98,8 +119,8 @@ export default function KawasanDetail() {
               <h3 className="text-xl font-bold text-[#1C2B20]">{kawasan.name}</h3>
               <span
                 className={`px-3 py-0.5 rounded-full text-xs font-semibold ${kawasan.status === 'active'
-                    ? 'bg-[#85BB45]/15 text-[#3F6900]'
-                    : 'bg-slate-200 text-slate-600'
+                  ? 'bg-[#85BB45]/15 text-[#3F6900]'
+                  : 'bg-slate-200 text-slate-600'
                   }`}
               >
                 {kawasan.status === 'active' ? 'Aktif' : 'Nonaktif'}
