@@ -107,7 +107,7 @@ export default function RentalEdit() {
           {
             id: Date.now().toString(),
             name: '',
-            price: '',
+            price: 0,
             unit: 'hari',
             availability: 'tersedia',
           },
@@ -178,10 +178,6 @@ export default function RentalEdit() {
       if (!item.name?.trim()) {
         newErrors[`item_${index}_name`] = `Nama item ke-${index + 1} tidak boleh kosong.`;
       }
-      const priceNum = Number(item.price);
-      if (isNaN(priceNum) || priceNum <= 0) {
-        newErrors[`item_${index}_price`] = `Harga item ke-${index + 1} harus lebih besar dari 0.`;
-      }
     });
 
     setErrors(newErrors);
@@ -194,6 +190,14 @@ export default function RentalEdit() {
 
     setIsSubmitting(true);
     try {
+      const sanitizedItems = (formData.items || []).map((it) => ({
+        ...it,
+        name: it.name.trim(),
+        price: it.price !== undefined && it.price !== '' ? it.price : 0,
+        unit: it.unit || 'hari',
+        availability: it.availability || 'tersedia',
+      }));
+
       if (imageFile) {
         const payload = new FormData();
         payload.append('name', formData.name.trim());
@@ -203,7 +207,7 @@ export default function RentalEdit() {
         payload.append('openingTime', formData.openingTime);
         payload.append('closingTime', formData.closingTime);
         payload.append('status', formData.status);
-        payload.append('items', JSON.stringify(formData.items || []));
+        payload.append('items', JSON.stringify(sanitizedItems));
         payload.append('image', imageFile);
         await rentalService.update(id, payload as any);
       } else {
@@ -213,6 +217,7 @@ export default function RentalEdit() {
           description: formData.description.trim(),
           whatsapp: formData.whatsapp.trim(),
           address: formData.address.trim(),
+          items: sanitizedItems,
         });
       }
       router.push('/admin/rental');
@@ -414,72 +419,39 @@ export default function RentalEdit() {
             {(formData.items || []).length === 0 ? (
               <p className="text-xs text-[#8b9d91] italic py-2">Belum ada item ditambahkan.</p>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 {formData.items?.map((item, index) => (
                   <div
                     key={item.id}
-                    className="p-3.5 bg-[#EEF5EA]/50 rounded-xl border border-[#d4e0d7]/80 space-y-2"
+                    className="p-3 bg-[#EEF5EA]/50 rounded-xl border border-[#d4e0d7]/80 space-y-1.5"
                   >
-                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
-                      <div className="sm:col-span-4 space-y-1">
-                        <label className="text-[11px] font-semibold text-[#8b9d91]">Nama Item</label>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1">
                         <input
                           type="text"
                           value={item.name}
                           onChange={(e) => handleItemChange(item.id, 'name', e.target.value)}
-                          className={`w-full px-3 py-1.5 bg-white border rounded-lg text-xs ${
-                            errors[`item_${index}_name`] ? 'border-red-500' : 'border-[#d4e0d7]'
+                          placeholder={`Nama item ke-${index + 1} (contoh: Tenda Dome 4P, Matras, Kompor)`}
+                          className={`w-full px-3.5 py-2 bg-white border rounded-lg text-xs text-[#1C2B20] placeholder-[#8b9d91] focus:outline-none focus:border-[#85BB45] transition ${
+                            errors[`item_${index}_name`]
+                              ? 'border-red-500 focus:border-red-500 ring-1 ring-red-500/20'
+                              : 'border-[#d4e0d7]'
                           }`}
                         />
                       </div>
-                      <div className="sm:col-span-3 space-y-1">
-                        <label className="text-[11px] font-semibold text-[#8b9d91]">Harga (Rp)</label>
-                        <input
-                          type="number"
-                          value={item.price}
-                          onChange={(e) => handleItemChange(item.id, 'price', e.target.value)}
-                          className={`w-full px-3 py-1.5 bg-white border rounded-lg text-xs ${
-                            errors[`item_${index}_price`] ? 'border-red-500' : 'border-[#d4e0d7]'
-                          }`}
-                        />
-                      </div>
-                      <div className="sm:col-span-2 space-y-1">
-                        <label className="text-[11px] font-semibold text-[#8b9d91]">Satuan</label>
-                        <input
-                          type="text"
-                          value={item.unit}
-                          onChange={(e) => handleItemChange(item.id, 'unit', e.target.value)}
-                          className="w-full px-3 py-1.5 bg-white border border-[#d4e0d7] rounded-lg text-xs"
-                        />
-                      </div>
-                      <div className="sm:col-span-2 space-y-1">
-                        <label className="text-[11px] font-semibold text-[#8b9d91]">Status</label>
-                        <select
-                          value={item.availability}
-                          onChange={(e) =>
-                            handleItemChange(item.id, 'availability', e.target.value)
-                          }
-                          className="w-full px-3 py-1.5 bg-white border border-[#d4e0d7] rounded-lg text-xs"
-                        >
-                          <option value="tersedia">Tersedia</option>
-                          <option value="habis">Habis</option>
-                        </select>
-                      </div>
-                      <div className="sm:col-span-1 flex justify-end pb-0.5">
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveItem(item.id)}
-                          className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition"
-                          title="Hapus Item"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveItem(item.id)}
+                        className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition shrink-0"
+                        title="Hapus Item"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
-                    {(errors[`item_${index}_name`] || errors[`item_${index}_price`]) && (
-                      <div className="text-[11px] text-red-500 font-medium">
-                        {errors[`item_${index}_name`]} {errors[`item_${index}_price`]}
-                      </div>
+                    {errors[`item_${index}_name`] && (
+                      <p className="text-[11px] text-red-500 font-medium pl-1">
+                        {errors[`item_${index}_name`]}
+                      </p>
                     )}
                   </div>
                 ))}
