@@ -12,10 +12,18 @@ export const mapCatalogToRental = (item: any): Rental => {
   const isActive = statusStr === 'approved' || statusStr === 'active';
   const tagsList = ensureArray(item.tags);
 
-  // Inventaris item: jika ada di item.items gunakan itu, jika tidak buat dari tags
+  // Inventaris item: jika ada di item.items gunakan itu, dengan fallback dari tags
   let items: RentalItemSub[] = [];
   if (Array.isArray(item.items) && item.items.length > 0) {
-    items = item.items;
+    items = item.items.map((it: any, idx: number) => ({
+      id: String(it.id || `${item.id}-${idx}`),
+      name: it.name || '',
+      price: it.price !== undefined ? it.price : (item.price_text || '50000'),
+      unit: it.unit || 'hari',
+      availability: it.availability || 'tersedia',
+      image: it.image_url || it.image || null,
+      image_url: it.image_url || it.image || null,
+    }));
   } else if (tagsList.length > 0) {
     items = tagsList.map((tag, idx) => ({
       id: `${item.id}-${idx}`,
@@ -23,6 +31,8 @@ export const mapCatalogToRental = (item: any): Rental => {
       price: item.price_text || '50000',
       unit: 'hari',
       availability: 'tersedia',
+      image: null,
+      image_url: null,
     }));
   }
 
@@ -82,6 +92,7 @@ export const rentalService = {
         price_text: priceText,
         status: p.status === 'active' ? 'approved' : 'pending',
         image_url: p.image,
+        items: p.items,
       });
     }
 
@@ -118,6 +129,7 @@ export const rentalService = {
       if (p.items !== undefined) {
         const tagNames = p.items.map((it) => it.name).filter(Boolean);
         data.tags = tagNames.join(', ');
+        data.items = p.items;
         if (p.items.length > 0) {
           data.price_text = `Mulai ${p.items[0].price}`;
         }

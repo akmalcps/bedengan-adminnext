@@ -4,7 +4,8 @@ export interface RentalItemSub {
   price: number | string;
   unit: string;
   availability: 'tersedia' | 'habis' | string;
-  image?: string;
+  image?: string | null;
+  image_url?: string | null;
 }
 
 export interface Rental {

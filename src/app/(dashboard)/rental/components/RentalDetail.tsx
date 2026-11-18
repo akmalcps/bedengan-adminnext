@@ -149,29 +149,45 @@ export default function RentalDetail() {
 
             {Array.isArray(rental.items) && rental.items.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {rental.items.map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-3.5 rounded-xl border border-[#d4e0d7] hover:border-[#85BB45] transition flex flex-col justify-between gap-2"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="font-semibold text-xs text-[#1C2B20]">{item.name}</span>
-                      <span
-                        className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                          item.availability === 'tersedia'
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-rose-100 text-rose-700'
-                        }`}
-                      >
-                        {item.availability}
-                      </span>
+                {rental.items.map((item) => {
+                  const itemImg = item.image_url || item.image;
+                  return (
+                    <div
+                      key={item.id}
+                      className="p-3.5 rounded-xl border border-[#d4e0d7] hover:border-[#85BB45] transition flex items-center gap-3.5"
+                    >
+                      {itemImg ? (
+                        <img
+                          src={getImageUrl(itemImg)}
+                          alt={item.name}
+                          className="w-14 h-14 rounded-lg object-cover border border-[#d4e0d7] shrink-0"
+                        />
+                      ) : (
+                        <div className="w-14 h-14 rounded-lg bg-[#EEF5EA] border border-[#d4e0d7]/80 flex items-center justify-center text-[#85BB45] shrink-0">
+                          <span className="text-[10px] font-bold uppercase tracking-wider">No Foto</span>
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0 flex flex-col justify-between gap-1.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="font-semibold text-xs text-[#1C2B20] truncate">{item.name}</span>
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${
+                              item.availability === 'tersedia'
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : 'bg-rose-100 text-rose-700'
+                            }`}
+                          >
+                            {item.availability}
+                          </span>
+                        </div>
+                        <div className="text-xs font-bold text-[#3F6900]">
+                          {formatRupiah(item.price)}
+                          <span className="text-[11px] font-normal text-[#8b9d91]"> / {item.unit}</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-xs font-bold text-[#3F6900]">
-                      {formatRupiah(item.price)}
-                      <span className="text-[11px] font-normal text-[#8b9d91]"> / {item.unit}</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <p className="text-xs text-[#8b9d91] italic">Tidak ada item rental terdaftar.</p>

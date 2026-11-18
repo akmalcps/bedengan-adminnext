@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Plus, Trash2, ArrowLeft, Loader2, Upload } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Loader2, Upload, Camera, X } from 'lucide-react';
 import { rentalService } from '@/src/services/rentalService';
 import { Rental, RentalItemSub } from '@/src/types/rental';
-import { sanitizePhoneInput, validatePhoneNumber } from '@/src/utils/format';
+import { sanitizePhoneInput, validatePhoneNumber, getImageUrl } from '@/src/utils/format';
 
 export default function RentalEdit() {
   const params = useParams();
@@ -14,6 +14,8 @@ export default function RentalEdit() {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [itemFiles, setItemFiles] = useState<Record<string, File>>({});
+  const [itemPreviews, setItemPreviews] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState<Rental | null>(null);
 
@@ -140,6 +142,57 @@ export default function RentalEdit() {
         items: (prev.items || []).filter((item) => item.id !== itemId),
       };
     });
+    setItemFiles((prev) => {
+      const next = { ...prev };
+      delete next[itemId];
+      return next;
+    });
+    setItemPreviews((prev) => {
+      const next = { ...prev };
+      delete next[itemId];
+      return next;
+    });
+  };
+
+  const handleItemImageChange = (itemId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('Format foto item harus berupa JPG, PNG, atau WEBP.');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Ukuran foto item maksimal adalah 5MB.');
+        return;
+      }
+
+      setItemFiles((prev) => ({ ...prev, [itemId]: file }));
+      const objectUrl = URL.createObjectURL(file);
+      setItemPreviews((prev) => ({ ...prev, [itemId]: objectUrl }));
+    }
+  };
+
+  const handleRemoveItemImage = (itemId: string) => {
+    setItemFiles((prev) => {
+      const next = { ...prev };
+      delete next[itemId];
+      return next;
+    });
+    setItemPreviews((prev) => {
+      const next = { ...prev };
+      delete next[itemId];
+      return next;
+    });
+    setFormData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        items: (prev.items || []).map((it) =>
+          it.id === itemId ? { ...it, image: undefined, image_url: null } : it
+        ),
+      };
+    });
   };
 
   const validateForm = () => {
@@ -190,36 +243,45 @@ export default function RentalEdit() {
 
     setIsSubmitting(true);
     try {
-      const sanitizedItems = (formData.items || []).map((it) => ({
-        ...it,
-        name: it.name.trim(),
-        price: it.price !== undefined && it.price !== '' ? it.price : 0,
-        unit: it.unit || 'hari',
-        availability: it.availability || 'tersedia',
-      }));
+      const payload = new FormData();
+      payload.append('name', formData.name.trim());
+      payload.append('description', formData.description.trim());
+      payload.append('whatsapp', formData.whatsapp.trim());
+      payload.append('address', formData.address.trim());
+      payload.append('openingTime', formData.openingTime);
+      payload.append('closingTime', formData.closingTime);
+      payload.append('status', formData.status);
 
       if (imageFile) {
-        const payload = new FormData();
-        payload.append('name', formData.name.trim());
-        payload.append('description', formData.description.trim());
-        payload.append('whatsapp', formData.whatsapp.trim());
-        payload.append('address', formData.address.trim());
-        payload.append('openingTime', formData.openingTime);
-        payload.append('closingTime', formData.closingTime);
-        payload.append('status', formData.status);
-        payload.append('items', JSON.stringify(sanitizedItems));
         payload.append('image', imageFile);
-        await rentalService.update(id, payload as any);
-      } else {
-        await rentalService.update(id, {
-          ...formData,
-          name: formData.name.trim(),
-          description: formData.description.trim(),
-          whatsapp: formData.whatsapp.trim(),
-          address: formData.address.trim(),
-          items: sanitizedItems,
-        });
       }
+
+      const filesToUpload: File[] = [];
+      const sanitizedItems = (formData.items || []).map((it) => {
+        const itemFile = itemFiles[it.id];
+        let fileIndex: number | null = null;
+        if (itemFile) {
+          fileIndex = filesToUpload.length;
+          filesToUpload.push(itemFile);
+        }
+
+        return {
+          name: it.name.trim(),
+          image_url: it.image_url || it.image || null,
+          file_index: fileIndex,
+          price: it.price !== undefined && it.price !== '' ? it.price : 0,
+          unit: it.unit || 'hari',
+          availability: it.availability || 'tersedia',
+        };
+      });
+
+      payload.append('items', JSON.stringify(sanitizedItems));
+
+      filesToUpload.forEach((file) => {
+        payload.append('item_images', file);
+      });
+
+      await rentalService.update(id, payload as any);
       router.push('/admin/rental');
     } catch (error: any) {
       console.error('Error updating rental:', error);
@@ -420,41 +482,78 @@ export default function RentalEdit() {
               <p className="text-xs text-[#8b9d91] italic py-2">Belum ada item ditambahkan.</p>
             ) : (
               <div className="space-y-2.5">
-                {formData.items?.map((item, index) => (
-                  <div
-                    key={item.id}
-                    className="p-3 bg-[#EEF5EA]/50 rounded-xl border border-[#d4e0d7]/80 space-y-1.5"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1">
-                        <input
-                          type="text"
-                          value={item.name}
-                          onChange={(e) => handleItemChange(item.id, 'name', e.target.value)}
-                          placeholder={`Nama item ke-${index + 1} (contoh: Tenda Dome 4P, Matras, Kompor)`}
-                          className={`w-full px-3.5 py-2 bg-white border rounded-lg text-xs text-[#1C2B20] placeholder-[#8b9d91] focus:outline-none focus:border-[#85BB45] transition ${
-                            errors[`item_${index}_name`]
-                              ? 'border-red-500 focus:border-red-500 ring-1 ring-red-500/20'
-                              : 'border-[#d4e0d7]'
-                          }`}
-                        />
+                {formData.items?.map((item, index) => {
+                  const previewUrl =
+                    itemPreviews[item.id] ||
+                    (item.image_url ? getImageUrl(item.image_url) : item.image ? getImageUrl(item.image) : '');
+                  return (
+                    <div
+                      key={item.id}
+                      className="p-3 bg-[#EEF5EA]/50 rounded-xl border border-[#d4e0d7]/80 space-y-1.5"
+                    >
+                      <div className="flex items-center gap-3">
+                        {/* Thumbnail Foto Item Mini */}
+                        <div className="relative shrink-0">
+                          {previewUrl ? (
+                            <div className="relative group w-11 h-11 rounded-lg overflow-hidden border border-[#d4e0d7] bg-white">
+                              <img
+                                src={previewUrl}
+                                alt={item.name || `Item ${index + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveItemImage(item.id)}
+                                className="absolute inset-0 bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                                title="Hapus foto item"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          ) : (
+                            <label className="w-11 h-11 rounded-lg border border-dashed border-[#85BB45] bg-white hover:bg-[#EEF5EA] flex flex-col items-center justify-center text-[#85BB45] cursor-pointer transition">
+                              <Camera size={16} />
+                              <span className="text-[8px] font-semibold mt-0.5">Foto</span>
+                              <input
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp"
+                                onChange={(e) => handleItemImageChange(item.id, e)}
+                                className="hidden"
+                              />
+                            </label>
+                          )}
+                        </div>
+
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            value={item.name}
+                            onChange={(e) => handleItemChange(item.id, 'name', e.target.value)}
+                            placeholder={`Nama item ke-${index + 1} (contoh: Tenda Dome 4P, Matras, Kompor)`}
+                            className={`w-full px-3.5 py-2 bg-white border rounded-lg text-xs text-[#1C2B20] placeholder-[#8b9d91] focus:outline-none focus:border-[#85BB45] transition ${
+                              errors[`item_${index}_name`]
+                                ? 'border-red-500 focus:border-red-500 ring-1 ring-red-500/20'
+                                : 'border-[#d4e0d7]'
+                            }`}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveItem(item.id)}
+                          className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition shrink-0"
+                          title="Hapus Item"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveItem(item.id)}
-                        className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition shrink-0"
-                        title="Hapus Item"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      {errors[`item_${index}_name`] && (
+                        <p className="text-[11px] text-red-500 font-medium pl-1">
+                          {errors[`item_${index}_name`]}
+                        </p>
+                      )}
                     </div>
-                    {errors[`item_${index}_name`] && (
-                      <p className="text-[11px] text-red-500 font-medium pl-1">
-                        {errors[`item_${index}_name`]}
-                      </p>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
